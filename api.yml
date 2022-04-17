@@ -1,0 +1,79 @@
+openapi: "3.0.0"
+info:
+  version: "0.1"
+  title: "Test"
+
+
+paths:
+  /topics:
+    get:
+      description: "Returns the list of topics"
+      responses:
+        '200':
+          description: "Successfully retrieved the list of topics"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '500':
+          $ref: '#/components/responses/Error'
+    post:
+      description: "Add a new topic"
+      requestBody:
+        description: The new topic to add
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTopic'
+        required: true
+      responses:
+        '201':
+          description: "Successfully added topic"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewTopic'
+        '409':
+          description: "The topic already exists"
+          content:
+            text/plain:
+              schema:
+                type: string
+
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          description: The error message
+          type: string
+        version:
+          description: Current server version
+          type: string
+      required:
+        - message
+        - version
+    NewTopic:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The display name of the topic
+        id:
+          type: string
+          description: The string id of the topic
+          default: ""
+      required:
+        - name
+
+  responses:
+    Error:
+      description: "Generic error response"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
