@@ -26,6 +26,10 @@ impl Database {
         }
     }
 
+    pub async fn health(&self) -> Result<()> {
+        self.graph_db.run(query("RETURN 1")).await
+    }
+
     pub async fn get_topics(&self) -> Result<Vec<String>> {
         let res = self
             .graph_db
