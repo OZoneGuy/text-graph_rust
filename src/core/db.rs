@@ -8,12 +8,14 @@ pub struct Database {
 impl Database {
     pub async fn new(cfg: Config) -> Self {
         debug!("Attempting connection with config: {:?}", cfg);
-        let new_graph = Graph::new(
-            format!("{}:{}", cfg.address, cfg.port).as_str(),
-            cfg.username.as_str(),
-            cfg.pass.as_str(),
-        )
-        .await;
+        let config = neo4rs::config()
+            .uri(format!("{}:{}", cfg.address, cfg.port).as_str())
+            .user(cfg.username.as_str())
+            .password(cfg.pass.as_str())
+            .db("text-lables")
+            .build()
+            .unwrap();
+        let new_graph = Graph::connect(config).await;
         match new_graph {
             Ok(g) => {
                 info!("Connected to database!");
