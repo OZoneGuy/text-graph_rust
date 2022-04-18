@@ -36,7 +36,7 @@ impl Database {
                 let mut topics: Vec<String> = vec![];
 
                 while let Ok(Some(row)) = r.next().await {
-                    if let Some(name) = row.get("") {
+                    if let Some(name) = row.get::<Node>("t").unwrap().get("name") {
                         topics.push(name);
                     }
                 }
