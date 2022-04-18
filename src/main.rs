@@ -3,6 +3,7 @@ extern crate rocket;
 use log::info;
 use rocket::serde::json::Json;
 use rocket::State;
+use std::collections::HashMap;
 
 #[path = "models/generic.rs"]
 mod generic;
@@ -55,15 +56,18 @@ async fn get_topics(db: &State<Database>) -> Result<Json<Vec<String>>, Json<Erro
     db.get_topics()
         .await
         .map(|v| Json(v))
-        .map_err(|e| Json(Error::new(e)))
+        .map_err(|e| Json(Error::new(format!("Database error: {:?}", e))))
 }
 
 #[post("/topics", format = "json", data = "<topic>")]
-fn add_topic(topic: Json<NewTopic>) -> Result<Json<Health>, Json<Error>> {
+async fn add_topic(
+    topic: Json<NewTopic>,
+    db: &State<Database>,
+) -> Result<Json<Health>, Json<Error>> {
     info!(target: "app_events", "New topic json: {:#?}", topic.0);
 
-    Ok(Json(Health::new(format!(
-        "Successfully added: {:?}",
-        topic.0
-    ))))
+    db.add_topic(topic.name.as_str())
+        .await
+        .map(|_| Json(Health::new(format!("Successfully created {}", topic.name))))
+        .map_err(|e| Json(Error::new(e)))
 }

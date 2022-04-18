@@ -52,6 +52,12 @@ impl Database {
             Err(e) => Err(e),
         }
     }
+
+    pub async fn add_topic(&self, topic: &str) -> Result<()> {
+        self.graph_db
+            .run(query("CREATE (t:Topic {name: $name})").param("name", topic.to_string()))
+            .await
+    }
 }
 
 #[derive(Debug)]
