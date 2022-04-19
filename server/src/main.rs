@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate rocket;
+use clap::{crate_authors, crate_name, crate_version, Arg, ArgGroup, Command};
 use log::info;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -18,12 +19,64 @@ use db::*;
 mod auth;
 use auth::*;
 
+fn app<'help>() -> Command<'help> {
+    Command::new(crate_name!())
+        .author(crate_authors!())
+        .version(crate_version!())
+        .arg(Arg::new("dev")
+             .short('d')
+             .long("dev")
+             .help("Enable dev mode.")
+             .long_help("Enable more logging, sends more verbose errors to the client, and uses local database."))
+        .arg(Arg::new("db_username")
+             .short('u')
+             .help("The username for the Graph database. Defaults to neo4j")
+             .env("DB_USERNAME")
+             .takes_value(true)
+             .default_value("neo4j"))
+        .arg(Arg::new("db_pass")
+             .short('p')
+             .help("The password for the Graph database.")
+             .env("DB_PASSWORD")
+             .takes_value(true)
+             .required(true))
+        .arg(Arg::new("db_port")
+             .short('P')
+             .help("The port for the Graph database.")
+             .env("DB_PORT")
+             .takes_value(true)
+             .default_value("7687"))
+        .arg(Arg::new("db_host")
+             .short('H')
+             .help("The host for the Graph database.")
+             .env("DB_HOST")
+             .takes_value(true)
+             .default_value("localhost"))
+        .group(ArgGroup::new("database")
+               .args(&["db_username", "db_pass", "db_port", "db_host"]))
+}
+
 #[launch]
 async fn rocket() -> _ {
+    let args = app().get_matches();
+
     let cfg = db::Config {
-        username: "neo4j".to_string(),
-        pass: "pass1234".to_string(),
-        ..Default::default()
+        username: args
+            .value_of("db_username")
+            .expect("Empty username value.")
+            .to_string(),
+        pass: args
+            .value_of("db_pass")
+            .expect("Empty password value")
+            .to_string(),
+        port: args
+            .value_of("db_port")
+            .expect("Empty port value")
+            .to_string(),
+        address: args
+            .value_of("db_host")
+            .expect("Empty host value")
+            .to_string(),
     };
     rocket::build()
         .manage(Database::new(cfg).await)
@@ -68,7 +121,7 @@ async fn get_topics(db: &State<Database>) -> Result<Json<Vec<String>>, Json<Erro
 async fn add_topic(
     topic: Json<NewTopic>,
     db: &State<Database>,
-    _auth: AuthHandler
+    _auth: AuthHandler,
 ) -> Result<Json<Health>, Json<Error>> {
     info!(target: "app_events", "New topic json: {:#?}", topic.0);
 
