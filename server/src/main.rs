@@ -14,15 +14,20 @@ use topics::*;
 #[path = "core/db.rs"]
 mod db;
 use db::*;
+#[path = "core/auth.rs"]
+mod auth;
+use auth::*;
 
 #[launch]
-async fn rocker() -> _ {
+async fn rocket() -> _ {
     let cfg = db::Config {
+        username: "neo4j".to_string(),
+        pass: "pass1234".to_string(),
         ..Default::default()
     };
     rocket::build()
         .manage(Database::new(cfg).await)
-        .mount("/", routes![health, root, get_topics, add_topic])
+        .mount("/", routes![health, root, get_topics, add_topic, login])
 }
 
 #[get("/healthz")]
@@ -30,7 +35,7 @@ async fn health(db: &State<Database>) -> Json<Health> {
     let mut health_check: HashMap<&str, String> = HashMap::new();
 
     if let Some(db_err) = db.health().await.err() {
-        health_check.insert("Database", format!("{:?}", db_err ));
+        health_check.insert("Database", format!("{:?}", db_err));
     }
 
     if health_check.len() != 0 {
@@ -63,6 +68,7 @@ async fn get_topics(db: &State<Database>) -> Result<Json<Vec<String>>, Json<Erro
 async fn add_topic(
     topic: Json<NewTopic>,
     db: &State<Database>,
+    _auth: AuthHandler
 ) -> Result<Json<Health>, Json<Error>> {
     info!(target: "app_events", "New topic json: {:#?}", topic.0);
 
@@ -70,4 +76,9 @@ async fn add_topic(
         .await
         .map(|_| Json(Health::new(format!("Successfully created {}", topic.name))))
         .map_err(|e| Json(Error::new(e)))
+}
+
+#[get("/login")]
+fn login(_auth: AuthHandler) -> Json<Health> {
+    Json(Health::new("You are now logged in!".to_string()))
 }

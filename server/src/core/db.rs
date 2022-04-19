@@ -12,12 +12,16 @@ impl Database {
             .uri(format!("{}:{}", cfg.address, cfg.port).as_str())
             .user(cfg.username.as_str())
             .password(cfg.pass.as_str())
-            .db("text-lables")
             .build()
             .unwrap();
         let new_graph = Graph::connect(config).await;
         match new_graph {
             Ok(g) => {
+                if let Err(e) = g.run(query("RETURN 1")).await {
+                    error!("Failed to connect to the database: {:#?}", e);
+                    panic!("Failed to connect to the database: {:#?}", e);
+                }
+
                 info!("Connected to database!");
                 Database { graph_db: g }
             }
