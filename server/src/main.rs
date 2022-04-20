@@ -110,8 +110,10 @@ fn root() -> String {
 }
 
 #[get("/topics?<page>&<size>")]
-async fn get_topics(page: Option<i64>, size: Option<i64>, db: &State<Database>) -> Result<Json<Vec<String>>, Json<Error>> {
-    db.get_topics(page, size)
+async fn get_topics(page: Option<i32>, size: Option<i32>, db: &State<Database>) -> Result<Json<Vec<String>>, Json<Error>> {
+    let page_num = page.unwrap_or(1);
+    let size_num = size.unwrap_or(50);
+    db.get_topics(page_num, size_num)
         .await
         .map(|v| Json(v))
         .map_err(|e| Json(Error::new(format!("Database error: {:?}", e))))
