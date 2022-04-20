@@ -109,9 +109,9 @@ fn root() -> String {
     "Nothing to see here!".to_string()
 }
 
-#[get("/topics")]
-async fn get_topics(db: &State<Database>) -> Result<Json<Vec<String>>, Json<Error>> {
-    db.get_topics()
+#[get("/topics?<page>&<size>")]
+async fn get_topics(page: Option<i64>, size: Option<i64>, db: &State<Database>) -> Result<Json<Vec<String>>, Json<Error>> {
+    db.get_topics(page, size)
         .await
         .map(|v| Json(v))
         .map_err(|e| Json(Error::new(format!("Database error: {:?}", e))))

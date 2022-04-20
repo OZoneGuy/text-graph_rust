@@ -36,10 +36,16 @@ impl Database {
         self.graph_db.run(query("RETURN 1")).await
     }
 
-    pub async fn get_topics(&self) -> Result<Vec<String>> {
+    pub async fn get_topics(&self, page: Option<i64>, size: Option<i64>) -> Result<Vec<String>> {
+        let page_num = page.unwrap_or(1);
+        let size_num = size.unwrap_or(50);
+        let skip = (page_num - 1) * size_num;
         let res = self
             .graph_db
-            .execute(query("MATCH (t: Topic) RETURN t"))
+            .execute(query(format!(
+                "MATCH (t: Topic) RETURN t SKIP {} LIMIT {}",
+                skip, size_num
+            ).as_str()))
             .await;
         match res {
             Ok(mut r) => {
