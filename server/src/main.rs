@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate rocket;
 use clap::{crate_authors, crate_name, crate_version, Arg, ArgGroup, Command};
-use log::info;
+use log::{error, info};
 use rocket::serde::json::Json;
 use rocket::State;
 use std::collections::HashMap;
@@ -18,6 +18,8 @@ use db::*;
 #[path = "core/auth.rs"]
 mod auth;
 use auth::*;
+
+type TextResponse = Result<Json<Health>, Json<Error>>;
 
 fn app<'help>() -> Command<'help> {
     Command::new(crate_name!())
@@ -78,9 +80,10 @@ async fn rocket() -> _ {
             .expect("Empty host value")
             .to_string(),
     };
-    rocket::build()
-        .manage(Database::new(cfg).await)
-        .mount("/", routes![health, root, get_topics, add_topic, login])
+    rocket::build().manage(Database::new(cfg).await).mount(
+        "/",
+        routes![health, root, get_topics, add_topic, login, delete_topic],
+    )
 }
 
 #[get("/healthz")]
@@ -110,7 +113,11 @@ fn root() -> String {
 }
 
 #[get("/topics?<page>&<size>")]
-async fn get_topics(page: Option<i32>, size: Option<i32>, db: &State<Database>) -> Result<Json<Vec<String>>, Json<Error>> {
+async fn get_topics(
+    page: Option<i32>,
+    size: Option<i32>,
+    db: &State<Database>,
+) -> Result<Json<Vec<String>>, Json<Error>> {
     let page_num = page.unwrap_or(1);
     let size_num = size.unwrap_or(50);
     db.get_topics(page_num, size_num)
@@ -121,16 +128,30 @@ async fn get_topics(page: Option<i32>, size: Option<i32>, db: &State<Database>) 
 
 #[post("/topics", format = "json", data = "<topic>")]
 async fn add_topic(
+    _auth: AuthHandler,
     topic: Json<NewTopic>,
     db: &State<Database>,
-    _auth: AuthHandler,
-) -> Result<Json<Health>, Json<Error>> {
+) -> TextResponse {
     info!(target: "app_events", "New topic json: {:#?}", topic.0);
 
     db.add_topic(topic.name.as_str())
         .await
         .map(|_| Json(Health::new(format!("Successfully created {}", topic.name))))
         .map_err(|e| Json(Error::new(e)))
+}
+
+#[delete("/topics", format = "json", data = "<topic>")]
+async fn delete_topic(topic: Json<NewTopic>, db: &State<Database>) -> TextResponse {
+    db.delete_topic(topic.name.as_str())
+        .await
+        .map(|_| {
+            info!("Deleted {}", topic.name);
+            Json(Health::new(format!("Successfully delete {}", topic.name)))
+        })
+        .map_err(|e| {
+            error!("Failed to delete topic: {:?}", e);
+            Json(Error::new(format!("Failed to delete topic: {:?}", e)))
+        })
 }
 
 #[get("/login")]

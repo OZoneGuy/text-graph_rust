@@ -68,6 +68,12 @@ impl Database {
             .run(query("CREATE (t:Topic {name: $name})").param("name", topic.to_string()))
             .await
     }
+
+    pub async fn delete_topic(&self, topic: &str) -> Result<()> {
+        self.graph_db
+            .run(query("MATCH (t:Topic {name: $name}) DELETE t").param("name", topic))
+            .await
+    }
 }
 
 #[derive(Debug)]
