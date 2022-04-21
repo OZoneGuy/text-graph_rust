@@ -5,6 +5,5 @@ edition = "2021"
 
 [dependencies]
 rocket = { version = "0.5.0-rc.1", features = ["json"] }
-log = { version = "0.4.16" }
 neo4rs = { version = "0.5.9" }
 clap = { version = "3.1.9", features = ["env", "unicode", "wrap_help", "cargo"] }

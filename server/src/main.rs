@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate rocket;
 use clap::{crate_authors, crate_name, crate_version, Arg, ArgGroup, Command};
-use log::{error, info};
 use rocket::serde::json::Json;
 use rocket::State;
 use std::collections::HashMap;
@@ -57,6 +56,13 @@ fn app<'help>() -> Command<'help> {
 async fn rocket() -> _ {
     let args = app().get_matches();
 
+    let log_level: rocket::config::LogLevel;
+    if args.is_present("dev") {
+        log_level = rocket::config::LogLevel::Debug;
+    } else {
+        log_level = rocket::config::LogLevel::Normal
+    }
+
     let cfg = core::db::Config {
         username: args
             .value_of("db_username")
@@ -75,10 +81,16 @@ async fn rocket() -> _ {
             .expect("Empty host value")
             .to_string(),
     };
-    rocket::build().manage(Database::new(cfg).await).mount(
-        "/",
-        routes![health, root, get_topics, add_topic, login, delete_topic],
-    )
+    rocket::build()
+        .manage(Database::new(cfg).await)
+        .mount(
+            "/",
+            routes![health, root, get_topics, add_topic, login, delete_topic],
+        )
+        .configure(rocket::Config {
+            log_level,
+            ..Default::default()
+        })
 }
 
 #[get("/healthz")]
@@ -127,7 +139,7 @@ async fn add_topic(
     topic: Json<NewTopic>,
     db: &State<Database>,
 ) -> TextResponse {
-    info!(target: "app_events", "New topic json: {:#?}", topic.0);
+    info!("New topic json: {:#?}", topic.0);
 
     db.add_topic(topic.name.as_str())
         .await

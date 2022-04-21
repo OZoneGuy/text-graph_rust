@@ -1,5 +1,4 @@
-use log::{debug, error, info};
-use neo4rs::*;
+use neo4rs::{query, Graph, Node, Result};
 
 pub struct Database {
     graph_db: Graph,

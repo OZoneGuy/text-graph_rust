@@ -1,6 +1,5 @@
 use rocket::request::{ FromRequest, Outcome, Request };
 use rocket::http::{ Cookie, Status };
-use log::{ debug };
 
 pub struct AuthHandler {
 }
