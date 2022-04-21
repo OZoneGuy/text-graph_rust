@@ -6,18 +6,13 @@ use rocket::serde::json::Json;
 use rocket::State;
 use std::collections::HashMap;
 
-#[path = "models/generic.rs"]
-mod generic;
-use generic::*;
-#[path = "models/topics.rs"]
-mod topics;
-use topics::*;
-#[path = "core/db.rs"]
-mod db;
-use db::*;
-#[path = "core/auth.rs"]
-mod auth;
-use auth::*;
+mod models;
+use models::generic::*;
+use models::topics::*;
+
+mod core;
+use crate::core::auth::*;
+use crate::core::db::*;
 
 type TextResponse = Result<Json<Health>, Json<Error>>;
 
@@ -62,7 +57,7 @@ fn app<'help>() -> Command<'help> {
 async fn rocket() -> _ {
     let args = app().get_matches();
 
-    let cfg = db::Config {
+    let cfg = core::db::Config {
         username: args
             .value_of("db_username")
             .expect("Empty username value.")
