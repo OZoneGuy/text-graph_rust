@@ -85,7 +85,16 @@ async fn rocket() -> _ {
         .manage(Database::new(cfg).await)
         .mount(
             "/",
-            routes![health, root, get_topics, add_topic, login, delete_topic],
+            routes![
+                health,
+                root,
+                get_topics,
+                add_topic,
+                login,
+                delete_topic,
+                create_sub_topic_relation,
+                get_sub_topics,
+            ],
         )
         .configure(rocket::Config {
             log_level,
@@ -121,8 +130,8 @@ fn root() -> String {
 
 #[get("/topics?<page>&<size>")]
 async fn get_topics(
-    page: Option<i32>,
-    size: Option<i32>,
+    page: Option<i64>,
+    size: Option<i64>,
     db: &State<Database>,
 ) -> Result<Json<Vec<String>>, Json<Error>> {
     let page_num = page.unwrap_or(1);
@@ -158,6 +167,43 @@ async fn delete_topic(topic: Json<NewTopic>, db: &State<Database>) -> TextRespon
         .map_err(|e| {
             error!("Failed to delete topic: {:?}", e);
             Json(Error::new(format!("Failed to delete topic: {:?}", e)))
+        })
+}
+
+#[post("/sub-topic", format = "json", data = "<sub_topic>")]
+async fn create_sub_topic_relation(
+    sub_topic: Json<SubTopicRelation>,
+    db: &State<Database>,
+) -> TextResponse {
+    db.sub_topic_relation(sub_topic.topic.as_str(), sub_topic.sub_topic.as_str())
+        .await
+        .map(|_| {
+            let msg: String = format!(
+                "Created a sub topic relation between {} and {}",
+                sub_topic.topic, sub_topic.sub_topic
+            );
+            info!("{}", msg);
+            Json(Health::new(msg))
+        })
+        .map_err(|e| {
+            let msg: String = format!("Failed to creat sub topic relation: {:?}", e);
+            info!("{}", msg);
+            Json(Error::new(msg))
+        })
+}
+
+#[get("/sub-topic?<topic>")]
+async fn get_sub_topics(
+    topic: String,
+    db: &State<Database>,
+) -> Result<Json<Vec<String>>, Json<Error>> {
+    db.get_sub_topics(topic.as_str())
+        .await
+        .map(|v| Json(v))
+        .map_err(|e| {
+            let msg = format!("Failed to get subtopics for {}: {:?}", topic, e);
+            error!("{}", msg);
+            Json(Error::new(msg))
         })
 }
 
