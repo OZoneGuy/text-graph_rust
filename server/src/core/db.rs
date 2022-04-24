@@ -1,4 +1,4 @@
-use neo4rs::{query, Graph, Node, Result, Error};
+use neo4rs::{query, Error, Graph, Node, Result};
 
 pub struct Database {
     graph_db: Graph,
@@ -82,7 +82,9 @@ impl Database {
 
     pub async fn sub_topic_relation(&self, topic: &str, sub_topic: &str) -> Result<()> {
         if topic == sub_topic {
-            return Err(Error::UnknownMessage("Topic cannot also be sub topic.".to_string()));
+            return Err(Error::UnknownMessage(
+                "Topic cannot also be sub topic.".to_string(),
+            ));
         }
         self.graph_db
             .execute(
