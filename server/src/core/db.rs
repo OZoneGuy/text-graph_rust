@@ -43,10 +43,11 @@ impl Database {
         let mut res = self
             .graph_db
             .execute(
-                query("MATCH (t:$label ) RETURN t SKIP $skip LIMIT $size")
-                    .param("label", TOPIC_LABEL)
-                    .param("skip", skip)
-                    .param("size", size),
+                query(
+                    format!("MATCH (t:{} ) RETURN t SKIP $skip LIMIT $size", TOPIC_LABEL).as_str(),
+                )
+                .param("skip", skip)
+                .param("size", size),
             )
             .await?;
         let mut topics: Vec<String> = vec![];
@@ -63,9 +64,8 @@ impl Database {
     pub async fn add_topic(&self, topic: &str) -> Result<()> {
         self.graph_db
             .run(
-                query("CREATE (t:$label {name: $name})")
-                    .param("name", topic.to_string())
-                    .param("label", TOPIC_LABEL),
+                query(format!("CREATE (t:{} {{name: $name}})", TOPIC_LABEL).as_str())
+                    .param("name", topic.to_string()),
             )
             .await
     }
@@ -73,9 +73,8 @@ impl Database {
     pub async fn delete_topic(&self, topic: &str) -> Result<()> {
         self.graph_db
             .run(
-                query("MATCH (t:$label {name: $name}) DELETE t")
-                    .param("name", topic)
-                    .param("label", TOPIC_LABEL),
+                query(format!("MATCH (t:{} {{name: $name}}) DELETE t", TOPIC_LABEL).as_str())
+                    .param("name", topic),
             )
             .await
     }
@@ -89,26 +88,40 @@ impl Database {
         self.graph_db
             .execute(
                 query(
-                    "MATCH (t:$label {name: $topic}), (st:$label {name: $sub_topic})
-                     MERGE (t)-[r:rel_label]->(st) RETURN r",
+                    format!(
+                        "MATCH (t:{0} {{name: $topic}}), (st:{0} {{name: $sub_topic}})
+                     MERGE (t)-[r:{1}]->(st) RETURN r",
+                        TOPIC_LABEL, SUPER_TOPIC_LABEL
+                    )
+                    .as_str(),
                 )
                 .param("topic", topic)
-                .param("sub_topic", sub_topic)
-                .param("label", TOPIC_LABEL)
-                .param("rel_label", SUPER_TOPIC_LABEL),
+                .param("sub_topic", sub_topic),
             )
             .await?
             .next()
             .await
-            .map(|_| ())
+            .transpose()
+            .map_or(
+                Err(Error::UnknownType(
+                    "Did not find one of the topics".to_string(),
+                )),
+                |_| Ok(()),
+            )
     }
 
     pub async fn get_sub_topics(&self, topic: &str) -> Result<Vec<String>> {
         let mut res = self
             .graph_db
             .execute(
-                query("MATCH (:Topic {name: $name})-[:SUPER_TOPIC]->(t:Topic) RETURN t")
-                    .param("name", topic),
+                query(
+                    format!(
+                        "MATCH (:{} {{name: $name}})-[:{}]->(t:Topic) RETURN t",
+                        TOPIC_LABEL, SUPER_TOPIC_LABEL
+                    )
+                    .as_str(),
+                )
+                .param("name", topic),
             )
             .await?;
         let mut topics: Vec<String> = vec![];
