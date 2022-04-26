@@ -82,7 +82,18 @@ async fn rocket() -> _ {
         .manage(Database::new(cfg).await)
         .mount(
             "/",
-            routes![health, root, get_topics, add_topic, login, delete_topic,],
+            routes![
+                health,
+                root,
+                get_topics,
+                add_topic,
+                login,
+                delete_topic,
+                get_references,
+                add_qref,
+                add_href,
+                add_bref,
+            ],
         )
         .configure(rocket::Config {
             log_level,
@@ -161,4 +172,50 @@ async fn delete_topic(topic: Json<NewTopic>, db: &State<Database>) -> TextRespon
 #[get("/login")]
 fn login(_auth: AuthHandler) -> Json<Health> {
     Json(Health::new("You are now logged in!".to_string()))
+}
+
+#[get("/refs?<topic>")]
+async fn get_references(
+    topic: &str,
+    db: &State<Database>,
+) -> Result<Json<Vec<RefEnum>>, Json<Error>> {
+    db.get_refs(topic)
+        .await
+        .map(|v| Json(v))
+        .map_err(|e| Json(Error::new(e)))
+}
+
+#[post("/refs/qref?<topic>", format = "json", data = "<qref>")]
+async fn add_qref(
+    topic: &str,
+    qref: Json<QRefParams>,
+    db: &State<Database>,
+) -> Result<Json<Health>, Json<Error>> {
+    db.add_qref_to_topic(topic, qref.0)
+        .await
+        .map(|_| Json(Health::new("".to_string())))
+        .map_err(|e| Json(Error::new(e)))
+}
+
+#[post("/refs/href?<topic>&<h_id>")]
+async fn add_href(
+    topic: &str,
+    h_id: i64,
+    db: &State<Database>,
+) -> Result<Json<Health>, Json<Error>> {
+    db.add_href_to_topic(topic, h_id)
+        .await
+        .map(|_| Json(Health::new("".to_string())))
+        .map_err(|e| Json(Error::new(e)))
+}
+#[post("/refs/bref?<topic>", format = "json", data = "<bref>")]
+async fn add_bref(
+    topic: &str,
+    bref: Json<BRefParams>,
+    db: &State<Database>,
+) -> Result<Json<Health>, Json<Error>> {
+    db.add_bref_to_topic(topic, bref.0)
+        .await
+        .map(|_| Json(Health::new("".to_string())))
+        .map_err(|e| Json(Error::new(e)))
 }
