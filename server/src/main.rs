@@ -1,14 +1,14 @@
 #[macro_use]
 extern crate rocket;
 use clap::{crate_authors, crate_name, crate_version, Arg, ArgGroup, Command};
-use rocket::{ State, serde::json::Json };
+use rocket::{serde::json::Json, State};
 use std::collections::HashMap;
 
 mod models;
-use models::{ generic::*, topics::* };
+use models::{generic::*, refs::*, topics::*};
 
 mod core;
-use crate::core::{ auth::*, db::* };
+use crate::core::{auth::*, db::*};
 
 type TextResponse = Result<Json<Health>, Json<Error>>;
 

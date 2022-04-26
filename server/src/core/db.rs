@@ -1,5 +1,7 @@
 use neo4rs::{query, Graph, Node, Result};
 
+use crate::models::refs::*;
+
 pub struct Database {
     graph_db: Graph,
 }
@@ -10,24 +12,6 @@ const HREF_LABEL: &str = "HRef";
 const BREF_LABEL: &str = "BRef";
 
 const REF_RELATION: &str = "REF";
-
-pub struct QRefParams {
-    chapter: i64,
-    init_verse: i64,
-    final_verse: i64,
-}
-
-pub struct BRefParams {
-    isbn: String,
-    name: String,
-    page: i64,
-}
-
-pub enum RefEnum {
-    QRef(QRefParams),
-    HRef(i64),
-    BRef(BRefParams),
-}
 
 impl Database {
     pub async fn new(cfg: Config) -> Self {
