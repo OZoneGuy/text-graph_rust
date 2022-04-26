@@ -1,11 +1,10 @@
-use neo4rs::{query, Error, Graph, Node, Result};
+use neo4rs::{query, Graph, Node, Result};
 
 pub struct Database {
     graph_db: Graph,
 }
 
 const TOPIC_LABEL: &str = "Topic";
-const SUPER_TOPIC_LABEL: &str = "SUPER_TOPIC";
 
 impl Database {
     pub async fn new(cfg: Config) -> Self {
@@ -64,7 +63,7 @@ impl Database {
     pub async fn add_topic(&self, topic: &str) -> Result<()> {
         self.graph_db
             .run(
-                query(format!("CREATE (t:{} {{name: $name}})", TOPIC_LABEL).as_str())
+                query(format!("CREATE (t:{} {{name: $name, level: 0}})", TOPIC_LABEL).as_str())
                     .param("name", topic.to_string()),
             )
             .await
@@ -77,60 +76,6 @@ impl Database {
                     .param("name", topic),
             )
             .await
-    }
-
-    pub async fn sub_topic_relation(&self, topic: &str, sub_topic: &str) -> Result<()> {
-        if topic == sub_topic {
-            return Err(Error::UnknownMessage(
-                "Topic cannot also be sub topic.".to_string(),
-            ));
-        }
-        self.graph_db
-            .execute(
-                query(
-                    format!(
-                        "MATCH (t:{0} {{name: $topic}}), (st:{0} {{name: $sub_topic}})
-                     MERGE (t)-[r:{1}]->(st) RETURN r",
-                        TOPIC_LABEL, SUPER_TOPIC_LABEL
-                    )
-                    .as_str(),
-                )
-                .param("topic", topic)
-                .param("sub_topic", sub_topic),
-            )
-            .await?
-            .next()
-            .await
-            .transpose()
-            .map_or(
-                Err(Error::UnknownType(
-                    "Did not find one of the topics".to_string(),
-                )),
-                |_| Ok(()),
-            )
-    }
-
-    pub async fn get_sub_topics(&self, topic: &str) -> Result<Vec<String>> {
-        let mut res = self
-            .graph_db
-            .execute(
-                query(
-                    format!(
-                        "MATCH (:{} {{name: $name}})-[:{}]->(t:Topic) RETURN t",
-                        TOPIC_LABEL, SUPER_TOPIC_LABEL
-                    )
-                    .as_str(),
-                )
-                .param("name", topic),
-            )
-            .await?;
-        let mut topics: Vec<String> = vec![];
-        while let Some(row) = res.next().await? {
-            if let Some(name) = row.get::<Node>("t").unwrap().get("name") {
-                topics.push(name);
-            }
-        }
-        Ok(topics)
     }
 }
 
