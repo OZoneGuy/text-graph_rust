@@ -5,6 +5,29 @@ pub struct Database {
 }
 
 const TOPIC_LABEL: &str = "Topic";
+const QREF_LABEL: &str = "QRef";
+const HREF_LABEL: &str = "HRef";
+const BREF_LABEL: &str = "BRef";
+
+const REF_RELATION: &str = "REF";
+
+pub struct QRefParams {
+    chapter: i64,
+    init_verse: i64,
+    final_verse: i64,
+}
+
+pub struct BRefParams {
+    isbn: String,
+    name: String,
+    page: i64,
+}
+
+pub enum RefEnum {
+    QRef(QRefParams),
+    HRef(i64),
+    BRef(BRefParams),
+}
 
 impl Database {
     pub async fn new(cfg: Config) -> Self {
@@ -51,7 +74,7 @@ impl Database {
             .await?;
         let mut topics: Vec<String> = vec![];
 
-        while let Ok(Some(row)) = res.next().await {
+        while let Some(row) = res.next().await? {
             if let Some(name) = row.get::<Node>("t").unwrap().get("name") {
                 topics.push(name);
             }
@@ -76,6 +99,97 @@ impl Database {
                     .param("name", topic),
             )
             .await
+    }
+
+    pub async fn add_qref_to_topic(&self, topic: &str, q_ref: QRefParams) -> Result<()> {
+        let q = format!(
+            "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{chapter: $chapter, init_verse: $i_verse, final_verse: $f_verse}})",
+            TOPIC_LABEL, REF_RELATION, HREF_LABEL).as_str();
+
+        self.graph_db
+            .run(
+                query(q)
+                    .param("chapter", q_ref.chapter)
+                    .param("init_verse", q_ref.init_verse)
+                    .param("final_verse", q_ref.final_verse),
+            )
+            .await
+    }
+
+    pub async fn add_href_to_topic(&self, topic: &str, id: i64) -> Result<()> {
+        let q = format!(
+            "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{h_id: $id}})",
+            TOPIC_LABEL, REF_RELATION, QREF_LABEL
+        )
+        .as_str();
+
+        self.graph_db.run(query(q).param("h_id", id)).await
+    }
+
+    pub async fn add_bref_to_topic(&self, topic: &str, bref: BRefParams) -> Result<()> {
+        let q = format!(
+            "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{ isbn: $isbn, name: $name, page: $page }})",
+            TOPIC_LABEL, REF_RELATION, BREF_LABEL).as_str();
+
+        self.graph_db
+            .run(
+                query(q)
+                    .param("isbn", bref.isbn)
+                    .param("name", bref.name)
+                    .param("page", bref.page),
+            )
+            .await
+    }
+
+    pub async fn get_refs(&self, topic: &str) -> Result<Vec<RefEnum>> {
+        let q = format!(
+            "MATCH (:{0} {{name: $topic}})-[:{1}]->(r)",
+            TOPIC_LABEL, REF_RELATION
+        )
+        .as_str();
+
+        let mut res = self
+            .graph_db
+            .execute(query(q).param("topic", topic))
+            .await?;
+
+        let mut refs: Vec<RefEnum> = vec![];
+
+        while let Some(row) = res.next().await? {
+            let node = row.get::<Node>("t").expect("Row should have an element 't'.");
+            let labels = node.labels();
+            if labels.contains(&QREF_LABEL.to_string()) {
+                let q_ref = QRefParams {
+                    chapter: node
+                        .get("chapter")
+                        .expect("Couldn't find chapter attribute in QRef node."),
+                    init_verse: node
+                        .get("init_verse")
+                        .expect("Couldn't find init_verse attribute in QRef node."),
+                    final_verse: node
+                        .get("final_verse")
+                        .expect("Couldn't find final_verse attribute in QRef node."),
+                };
+                refs.push(RefEnum::QRef(q_ref));
+            } else if labels.contains(&HREF_LABEL.to_string()) {
+                refs.push(RefEnum::HRef(node.get("h_id").expect("Couldn't find 'h_id' attribute in HRef node.")));
+            } else if labels.contains(&BREF_LABEL.to_string()) {
+                let b_ref = BRefParams {
+                    isbn: node
+                        .get("isbn")
+                        .expect("Couldn't find isbn attribute in BRef node."),
+                    name: node
+                        .get("name")
+                        .expect("Couldn't find name attribute in BRef node."),
+                    page: node
+                        .get("page")
+                        .expect("Couldn't find page attribute in BRef node."),
+                };
+                refs.push(RefEnum::BRef(b_ref));
+            }
+        }
+
+        Ok(refs)
     }
 }
 
