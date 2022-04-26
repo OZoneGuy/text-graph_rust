@@ -87,12 +87,13 @@ impl Database {
 
     pub async fn add_qref_to_topic(&self, topic: &str, q_ref: QRefParams) -> Result<()> {
         let q = format!(
-            "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{chapter: $chapter, init_verse: $i_verse, final_verse: $f_verse}})",
-            TOPIC_LABEL, REF_RELATION, HREF_LABEL).as_str();
+            "MERGE (t:{} {{name: $topic}})-[r:{}]->(qr:{} {{chapter: $chapter, init_verse: $i_verse, final_verse: $f_verse}})",
+            TOPIC_LABEL, REF_RELATION, HREF_LABEL);
 
         self.graph_db
             .run(
-                query(q)
+                query(q.as_str())
+                    .param("topic", topic)
                     .param("chapter", q_ref.chapter)
                     .param("init_verse", q_ref.init_verse)
                     .param("final_verse", q_ref.final_verse),
@@ -104,20 +105,22 @@ impl Database {
         let q = format!(
             "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{h_id: $id}})",
             TOPIC_LABEL, REF_RELATION, QREF_LABEL
-        )
-        .as_str();
+        );
 
-        self.graph_db.run(query(q).param("h_id", id)).await
+        self.graph_db
+            .run(query(q.as_str()).param("h_id", id).param("topic", topic))
+            .await
     }
 
     pub async fn add_bref_to_topic(&self, topic: &str, bref: BRefParams) -> Result<()> {
         let q = format!(
             "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{ isbn: $isbn, name: $name, page: $page }})",
-            TOPIC_LABEL, REF_RELATION, BREF_LABEL).as_str();
+            TOPIC_LABEL, REF_RELATION, BREF_LABEL);
 
         self.graph_db
             .run(
-                query(q)
+                query(q.as_str())
+                    .param("topic", topic)
                     .param("isbn", bref.isbn)
                     .param("name", bref.name)
                     .param("page", bref.page),
@@ -129,18 +132,19 @@ impl Database {
         let q = format!(
             "MATCH (:{0} {{name: $topic}})-[:{1}]->(r)",
             TOPIC_LABEL, REF_RELATION
-        )
-        .as_str();
+        );
 
         let mut res = self
             .graph_db
-            .execute(query(q).param("topic", topic))
+            .execute(query(q.as_str()).param("topic", topic))
             .await?;
 
         let mut refs: Vec<RefEnum> = vec![];
 
         while let Some(row) = res.next().await? {
-            let node = row.get::<Node>("t").expect("Row should have an element 't'.");
+            let node = row
+                .get::<Node>("t")
+                .expect("Row should have an element 't'.");
             let labels = node.labels();
             if labels.contains(&QREF_LABEL.to_string()) {
                 let q_ref = QRefParams {
@@ -156,7 +160,10 @@ impl Database {
                 };
                 refs.push(RefEnum::QRef(q_ref));
             } else if labels.contains(&HREF_LABEL.to_string()) {
-                refs.push(RefEnum::HRef(node.get("h_id").expect("Couldn't find 'h_id' attribute in HRef node.")));
+                refs.push(RefEnum::HRef(
+                    node.get("h_id")
+                        .expect("Couldn't find 'h_id' attribute in HRef node."),
+                ));
             } else if labels.contains(&BREF_LABEL.to_string()) {
                 let b_ref = BRefParams {
                     isbn: node
