@@ -10,6 +10,13 @@ pub struct QRefParams {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
+pub struct HRefParams {
+    pub collection: String,
+    pub number: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
 pub struct BRefParams {
     pub isbn: String,
     pub name: String,
@@ -20,6 +27,6 @@ pub struct BRefParams {
 #[serde(crate = "rocket::serde")]
 pub enum RefEnum {
     QRef(QRefParams),
-    HRef(i64),
+    HRef(HRefParams),
     BRef(BRefParams),
 }

@@ -87,35 +87,48 @@ impl Database {
 
     pub async fn add_qref_to_topic(&self, topic: &str, q_ref: QRefParams) -> Result<()> {
         let q = format!(
-            "MERGE (t:{} {{name: $topic}})-[r:{}]->(qr:{} {{chapter: $chapter, init_verse: $i_verse, final_verse: $f_verse}})",
-            TOPIC_LABEL, REF_RELATION, HREF_LABEL);
+            "MATCH (t:{0} {{name: $topic}})
+             MERGE (qr:{2} {{chapter: $chapter, init_verse: $i_verse, final_verse: $f_verse}})
+             MERGE (t)-[r:{1}]->(qr)",
+            TOPIC_LABEL, REF_RELATION, QREF_LABEL
+        );
 
         self.graph_db
             .run(
                 query(q.as_str())
                     .param("topic", topic)
                     .param("chapter", q_ref.chapter)
-                    .param("init_verse", q_ref.init_verse)
-                    .param("final_verse", q_ref.final_verse),
+                    .param("i_verse", q_ref.init_verse)
+                    .param("f_verse", q_ref.final_verse),
             )
             .await
     }
 
-    pub async fn add_href_to_topic(&self, topic: &str, id: i64) -> Result<()> {
+    pub async fn add_href_to_topic(&self, topic: &str, h_ref: HRefParams) -> Result<()> {
         let q = format!(
-            "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{h_id: $id}})",
-            TOPIC_LABEL, REF_RELATION, QREF_LABEL
+            "MATCH (t:{0} {{name: $topic}})
+             MERGE (qr:{2} {{collection: $collection ,number: $number}})
+             MERGE (t)-[r:{1}]-> (qr)",
+            TOPIC_LABEL, REF_RELATION, HREF_LABEL
         );
 
         self.graph_db
-            .run(query(q.as_str()).param("h_id", id).param("topic", topic))
+            .run(
+                query(q.as_str())
+                    .param("collection", h_ref.collection)
+                    .param("number", h_ref.number)
+                    .param("topic", topic),
+            )
             .await
     }
 
     pub async fn add_bref_to_topic(&self, topic: &str, bref: BRefParams) -> Result<()> {
         let q = format!(
-            "MERGE (t:{0} {{name: $topic}})-[r:{1}]->(qr:{2} {{ isbn: $isbn, name: $name, page: $page }})",
-            TOPIC_LABEL, REF_RELATION, BREF_LABEL);
+            "MATCH (t:{0} {{name: $topic}})
+             MERGE (br:{2} {{ isbn: $isbn, name: $name, page: $page }})
+             MERGE (t)-[r:{1}]-> (br)",
+            TOPIC_LABEL, REF_RELATION, BREF_LABEL
+        );
 
         self.graph_db
             .run(
@@ -130,7 +143,7 @@ impl Database {
 
     pub async fn get_refs(&self, topic: &str) -> Result<Vec<RefEnum>> {
         let q = format!(
-            "MATCH (:{0} {{name: $topic}})-[:{1}]->(r)",
+            "MATCH (:{0} {{name: $topic}})-[:{1}]->(r) RETURN r",
             TOPIC_LABEL, REF_RELATION
         );
 
@@ -143,8 +156,8 @@ impl Database {
 
         while let Some(row) = res.next().await? {
             let node = row
-                .get::<Node>("t")
-                .expect("Row should have an element 't'.");
+                .get::<Node>("r")
+                .expect("Row should have an element 'r'.");
             let labels = node.labels();
             if labels.contains(&QREF_LABEL.to_string()) {
                 let q_ref = QRefParams {
@@ -160,10 +173,11 @@ impl Database {
                 };
                 refs.push(RefEnum::QRef(q_ref));
             } else if labels.contains(&HREF_LABEL.to_string()) {
-                refs.push(RefEnum::HRef(
-                    node.get("h_id")
-                        .expect("Couldn't find 'h_id' attribute in HRef node."),
-                ));
+                let h_ref = HRefParams {
+                    collection: node.get("collection").expect("Couldn't find collection attribute in HRef node."),
+                    number: node.get("number").expect("Couldn't find number attribute in HRef node."),
+                };
+                refs.push(RefEnum::HRef(h_ref));
             } else if labels.contains(&BREF_LABEL.to_string()) {
                 let b_ref = BRefParams {
                     isbn: node

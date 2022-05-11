@@ -197,13 +197,13 @@ async fn add_qref(
         .map_err(|e| Json(Error::new(e)))
 }
 
-#[post("/refs/href?<topic>&<h_id>")]
+#[post("/refs/href?<topic>", format = "json", data = "<href>")]
 async fn add_href(
     topic: &str,
-    h_id: i64,
+    href: Json<HRefParams>,
     db: &State<Database>,
 ) -> Result<Json<Health>, Json<Error>> {
-    db.add_href_to_topic(topic, h_id)
+    db.add_href_to_topic(topic, href.0)
         .await
         .map(|_| Json(Health::new("".to_string())))
         .map_err(|e| Json(Error::new(e)))
