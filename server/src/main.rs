@@ -181,7 +181,7 @@ async fn get_references(
 ) -> Result<Json<Vec<RefEnum>>, Json<Error>> {
     db.get_refs(topic)
         .await
-        .map(|v| Json(v.into_iter().filter(|r| !r.isBook()).collect()))
+        .map(|v| Json(v.into_iter().filter(|r| !r.is_book()).collect()))
         .map_err(|e| Json(Error::new(e)))
 }
 
@@ -209,14 +209,14 @@ async fn add_href(
         .map_err(|e| Json(Error::new(e)))
 }
 
-#[post("/refs/bref?<topic>", format = "json", data = "<bref>")]
-async fn add_bref(
-    topic: &str,
-    bref: Json<BRefParams>,
-    db: &State<Database>,
-) -> Result<Json<Health>, Json<Error>> {
-    db.add_bref_to_topic(topic, bref.0)
-        .await
-        .map(|_| Json(Health::new("".to_string())))
-        .map_err(|e| Json(Error::new(e)))
-}
+// #[post("/refs/bref?<topic>", format = "json", data = "<bref>")]
+// async fn add_bref(
+//     topic: &str,
+//     bref: Json<BRefParams>,
+//     db: &State<Database>,
+// ) -> Result<Json<Health>, Json<Error>> {
+//     db.add_bref_to_topic(topic, bref.0)
+//         .await
+//         .map(|_| Json(Health::new("".to_string())))
+//         .map_err(|e| Json(Error::new(e)))
+// }

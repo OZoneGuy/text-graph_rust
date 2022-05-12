@@ -32,7 +32,7 @@ pub enum RefEnum {
 }
 
 impl RefEnum {
-    pub fn isBook(&self) -> bool {
+    pub fn is_book(&self) -> bool {
         match self {
             RefEnum::BRef(_) => true,
             _ => false,

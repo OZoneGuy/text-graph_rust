@@ -122,24 +122,24 @@ impl Database {
             .await
     }
 
-    pub async fn add_bref_to_topic(&self, topic: &str, bref: BRefParams) -> Result<()> {
-        let q = format!(
-            "MATCH (t:{0} {{name: $topic}})
-             MERGE (br:{2} {{ isbn: $isbn, name: $name, page: $page }})
-             MERGE (t)-[r:{1}]-> (br)",
-            TOPIC_LABEL, REF_RELATION, BREF_LABEL
-        );
+    // pub async fn add_bref_to_topic(&self, topic: &str, bref: BRefParams) -> Result<()> {
+    //     let q = format!(
+    //         "MATCH (t:{0} {{name: $topic}})
+    //          MERGE (br:{2} {{ isbn: $isbn, name: $name, page: $page }})
+    //          MERGE (t)-[r:{1}]-> (br)",
+    //         TOPIC_LABEL, REF_RELATION, BREF_LABEL
+    //     );
 
-        self.graph_db
-            .run(
-                query(q.as_str())
-                    .param("topic", topic)
-                    .param("isbn", bref.isbn)
-                    .param("name", bref.name)
-                    .param("page", bref.page),
-            )
-            .await
-    }
+    //     self.graph_db
+    //         .run(
+    //             query(q.as_str())
+    //                 .param("topic", topic)
+    //                 .param("isbn", bref.isbn)
+    //                 .param("name", bref.name)
+    //                 .param("page", bref.page),
+    //         )
+    //         .await
+    // }
 
     pub async fn get_refs(&self, topic: &str) -> Result<Vec<RefEnum>> {
         let q = format!(
