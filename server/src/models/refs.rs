@@ -12,7 +12,7 @@ pub struct QRefParams {
 #[serde(crate = "rocket::serde")]
 pub struct HRefParams {
     pub collection: String,
-    pub number: String
+    pub number: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,4 +29,13 @@ pub enum RefEnum {
     QRef(QRefParams),
     HRef(HRefParams),
     BRef(BRefParams),
+}
+
+impl RefEnum {
+    pub fn isBook(&self) -> bool {
+        match self {
+            RefEnum::BRef(_) => true,
+            _ => false,
+        }
+    }
 }

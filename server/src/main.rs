@@ -92,7 +92,7 @@ async fn rocket() -> _ {
                 get_references,
                 add_qref,
                 add_href,
-                add_bref,
+                // add_bref,
             ],
         )
         .configure(rocket::Config {
@@ -181,7 +181,7 @@ async fn get_references(
 ) -> Result<Json<Vec<RefEnum>>, Json<Error>> {
     db.get_refs(topic)
         .await
-        .map(|v| Json(v))
+        .map(|v| Json(v.into_iter().filter(|r| !r.isBook()).collect()))
         .map_err(|e| Json(Error::new(e)))
 }
 
@@ -208,6 +208,7 @@ async fn add_href(
         .map(|_| Json(Health::new("".to_string())))
         .map_err(|e| Json(Error::new(e)))
 }
+
 #[post("/refs/bref?<topic>", format = "json", data = "<bref>")]
 async fn add_bref(
     topic: &str,
