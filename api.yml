@@ -1,79 +1,273 @@
-openapi: "3.0.0"
+openapi: 3.0.0
 info:
-  version: "0.1"
-  title: "Test"
-
-
+  title: text-graph_rust
+  version: 0.1.0
+servers:
+  - url: '{schema}://{host}:{port}/{basePath}'
+    variables:
+      port:
+        enum:
+          - '8000'
+          - '8080'
+        default: '8000'
+      basePath:
+        default: api/v1/
+      host:
+        default: localhost
+      schema:
+        default: http
 paths:
-  /topics:
+  /healthz:
     get:
-      description: "Returns the list of topics"
+      operationId: health
       responses:
         '200':
-          description: "Successfully retrieved the list of topics"
+          description: ''
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
-        '500':
-          $ref: '#/components/responses/Error'
+                $ref: '#/components/schemas/Health'
+  /:
+    get:
+      operationId: root
+      responses:
+        '200':
+          description: ''
+          content:
+            text/plain:
+              schema:
+                type: string
+  /topics:
+    get:
+      operationId: get_topics
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            format: int64
+            nullable: true
+        - name: size
+          in: query
+          schema:
+            type: integer
+            format: int64
+            nullable: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: array
+                    items:
+                      type: string
     post:
-      description: "Add a new topic"
+      operationId: add_topic
       requestBody:
-        description: The new topic to add
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/NewTopic'
         required: true
       responses:
-        '201':
-          description: "Successfully added topic"
+        '200':
+          description: ''
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NewTopic'
-        '409':
-          description: "The topic already exists"
+                anyOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/Health'
+    delete:
+      operationId: delete_topic
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTopic'
+        required: true
+      responses:
+        '200':
+          description: ''
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-
-
+                anyOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/Health'
+  /login:
+    get:
+      operationId: login
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /refs:
+    get:
+      operationId: get_references
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/RefEnum'
+  /refs/qref:
+    post:
+      operationId: add_qref
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QRefParams'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/Health'
+  /refs/href:
+    post:
+      operationId: add_href
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HRefParams'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/Health'
 components:
   schemas:
-    ErrorResponse:
+    Health:
       type: object
-      properties:
-        message:
-          description: The error message
-          type: string
-        version:
-          description: Current server version
-          type: string
       required:
         - message
         - version
+      properties:
+        message:
+          type: string
+        version:
+          type: string
+    Error:
+      type: object
+      required:
+        - message
+        - version
+      properties:
+        message:
+          type: string
+        version:
+          type: string
     NewTopic:
       type: object
+      required:
+        - name
       properties:
         name:
           type: string
-          description: The display name of the topic
         id:
           type: string
-          description: The string id of the topic
-          default: ""
+          nullable: true
+    RefEnum:
+      oneOf:
+        - type: object
+          required:
+            - QRef
+          properties:
+            QRef:
+              $ref: '#/components/schemas/QRefParams'
+          additionalProperties: false
+        - type: object
+          required:
+            - HRef
+          properties:
+            HRef:
+              $ref: '#/components/schemas/HRefParams'
+          additionalProperties: false
+        - type: object
+          required:
+            - BRef
+          properties:
+            BRef:
+              $ref: '#/components/schemas/BRefParams'
+          additionalProperties: false
+    QRefParams:
+      type: object
       required:
+        - chapter
+        - final_verse
+        - init_verse
+      properties:
+        chapter:
+          type: integer
+          format: int64
+        init_verse:
+          type: integer
+          format: int64
+        final_verse:
+          type: integer
+          format: int64
+    HRefParams:
+      type: object
+      required:
+        - collection
+        - number
+      properties:
+        collection:
+          type: string
+        number:
+          type: string
+    BRefParams:
+      type: object
+      required:
+        - isbn
         - name
-
-  responses:
-    Error:
-      description: "Generic error response"
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+        - page
+      properties:
+        isbn:
+          type: string
+        name:
+          type: string
+        page:
+          type: integer
+          format: int64
