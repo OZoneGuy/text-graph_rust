@@ -81,7 +81,7 @@ async fn rocket() -> _ {
     rocket::build()
         .manage(Database::new(cfg).await)
         .mount(
-            "/",
+            "/api/v1",
             routes![
                 health,
                 root,
