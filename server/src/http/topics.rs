@@ -2,6 +2,7 @@ use actix_web::web::{scope, Data, Json, Query, ServiceConfig};
 use actix_web::{delete, get, http::StatusCode, post, services, Result};
 use serde::Deserialize;
 
+#[mockall_double::double]
 use crate::core::db::Database;
 use crate::models::generic::*;
 use crate::models::topics::*;
@@ -63,4 +64,52 @@ async fn delete_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Healt
             )
             .into()
         })
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use actix_service::Service;
+    use actix_web::{
+        http::StatusCode,
+        test,
+        test::{init_service, read_body, read_body_json, TestRequest},
+        App,
+    };
+
+    #[test]
+    async fn test_get_topics() {
+        let mut db = Database::default();
+        db.expect_get_topics().returning(|_page, _size| Ok(vec!["topic1".to_string(), "topic2".to_string()]));
+
+        let app = init_service(App::new().service(get_topics).app_data(Data::new(db))).await;
+        let req = TestRequest::with_uri("/").to_request();
+        let resp = app.call(req).await.unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: Vec<String> = read_body_json(resp).await;
+        assert_eq!(body, vec!["topic1".to_string(), "topic2".to_string()]);
+    }
+
+    #[test]
+    async fn test_get_topics_bad_query() {
+        let db = Database::default();
+        let app = init_service(App::new().service(get_topics).app_data(Data::new(db))).await;
+        let req = TestRequest::with_uri("/?page=-1&size=-1")
+            .to_request();
+        let resp = app.call(req).await.unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body = read_body(resp).await;
+            assert_eq!(
+                body,
+                format!(
+                    "{}",
+                    actix_web::Error::from(Error::new(
+                        "Invalid query paramaters. Must be positive integers.".to_string(),
+                        StatusCode::from_u16(400).unwrap()
+                    ))
+                )
+            )
+    }
 }
