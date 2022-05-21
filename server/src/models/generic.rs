@@ -1,15 +1,16 @@
-use rocket::serde::Serialize;
+use actix_web::{body::BoxBody, http::StatusCode, HttpRequest, HttpResponse, Responder, HttpResponseBuilder, ResponseError};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct Error {
     message: String,
     version: String,
+    #[serde(skip_serializing)]
+    code: u16,
 }
 
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Health {
     message: String,
     version: String,
@@ -23,11 +24,36 @@ impl Health {
 }
 
 impl Error {
-    pub fn new<E: Debug>(error: E) -> Error {
+    pub fn new<E: Debug>(error: E, code: StatusCode) -> Error {
         let version = env!("CARGO_PKG_VERSION").to_string();
         Error {
             message: format!("{:?}", error),
             version,
+            code: code.as_u16(),
         }
     }
+}
+
+impl Responder for Error {
+    type Body = BoxBody;
+    fn respond_to(self, _: &HttpRequest) -> HttpResponse<BoxBody> {
+        let code = StatusCode::from_u16(self.code).expect("Invalid response code");
+        HttpResponseBuilder::new(code).json(self)
+    }
+}
+
+impl Responder for Health {
+    type Body = actix_web::body::BoxBody;
+    fn respond_to(self, _: &HttpRequest) -> HttpResponse<actix_web::body::BoxBody> {
+        HttpResponse::Ok().json(self)
+    }
+}
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Error: {}", self.message)
+    }
+}
+
+impl ResponseError for Error {
 }

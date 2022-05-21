@@ -1,6 +1,7 @@
 use neo4rs::{query, Graph, Node, Result};
 
 use crate::models::refs::*;
+use mockall::automock;
 
 pub struct Database {
     graph_db: Graph,
@@ -13,9 +14,10 @@ const BREF_LABEL: &str = "BRef";
 
 const REF_RELATION: &str = "REF";
 
+#[automock]
 impl Database {
     pub async fn new(cfg: Config) -> Self {
-        debug!("Attempting connection with config: {:?}", cfg);
+        // debug!("Attempting connection with config: {:?}", cfg);
         let config = neo4rs::config()
             .uri(format!("{}:{}", cfg.address, cfg.port).as_str())
             .user(cfg.username.as_str())
@@ -26,15 +28,15 @@ impl Database {
         match new_graph {
             Ok(g) => {
                 if let Err(e) = g.run(query("RETURN 1")).await {
-                    error!("Failed to connect to the database: {:#?}", e);
+                    // error!("Failed to connect to the database: {:#?}", e);
                     panic!("Failed to connect to the database: {:#?}", e);
                 }
 
-                info!("Connected to database!");
+                // info!("Connected to database!");
                 Database { graph_db: g }
             }
             Err(e) => {
-                error!("Failed to connect to the database: {:#?}", e);
+                // error!("Failed to connect to the database: {:#?}", e);
                 panic!("Failed to connect to the database: {:#?}", e);
             }
         }
@@ -174,8 +176,12 @@ impl Database {
                 refs.push(RefEnum::QRef(q_ref));
             } else if labels.contains(&HREF_LABEL.to_string()) {
                 let h_ref = HRefParams {
-                    collection: node.get("collection").expect("Couldn't find collection attribute in HRef node."),
-                    number: node.get("number").expect("Couldn't find number attribute in HRef node."),
+                    collection: node
+                        .get("collection")
+                        .expect("Couldn't find collection attribute in HRef node."),
+                    number: node
+                        .get("number")
+                        .expect("Couldn't find number attribute in HRef node."),
                 };
                 refs.push(RefEnum::HRef(h_ref));
             } else if labels.contains(&BREF_LABEL.to_string()) {
@@ -198,7 +204,7 @@ impl Database {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub address: String,
     pub port: String,

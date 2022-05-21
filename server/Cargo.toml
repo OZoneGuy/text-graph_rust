@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rocket = { version = "0.5.0-rc.1", features = ["json", "secrets"] }
+actix-web = { version = "4.0.1" }
+serde = { version = "1.0", features = ["derive"] }
 neo4rs = { version = "0.5.9" }
 clap = { version = "3.1.9", features = ["env", "unicode", "wrap_help", "cargo"] }
+mockall = { version = "0.11.1" }
+mockall_double = { version = "0.3.0" }
