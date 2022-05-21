@@ -16,7 +16,7 @@ pub fn topics_service(cfg: &mut ServiceConfig) {
     cfg.service(scope("/topics").service(services![get_topics, add_topic]));
 }
 
-#[get("/topics")]
+#[get("/")]
 async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec<String>>, Error> {
     const DEF_PAGE: i64 = 1;
     const DEF_SIZE: i64 = 50;
@@ -39,7 +39,7 @@ async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec
         })
 }
 
-#[post("/topics")]
+#[post("/")]
 async fn add_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Health> {
     db.add_topic(topic.name.as_str())
         .await
@@ -47,7 +47,7 @@ async fn add_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Health> 
         .map_err(|e| Error::new(e, StatusCode::INTERNAL_SERVER_ERROR).into())
 }
 
-#[delete("/topics")]
+#[delete("/")]
 async fn delete_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Health> {
     db.delete_topic(topic.name.as_str())
         .await
