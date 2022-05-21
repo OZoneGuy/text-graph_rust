@@ -1,19 +1,19 @@
 use actix_web::web::{scope, Data, ServiceConfig};
-use actix_web::{get, services, Responder};
+use actix_web::{get, http::StatusCode, services, Responder, Result};
 use std::collections::HashMap;
 
 use mockall_double::double;
 
 #[double]
 use crate::core::db::Database;
-use crate::models::generic::Health;
+use crate::models::generic::*;
 
 pub fn root_service(cfg: &mut ServiceConfig) {
     cfg.service(scope("/").service(services![health, root]));
 }
 
 #[get("/healthz")]
-async fn health(db: Data<Database>) -> Health {
+async fn health(db: Data<Database>) -> Result<Health> {
     let mut health_check: HashMap<&str, String> = HashMap::new();
 
     if let Some(db_err) = db.health().await.err() {
@@ -21,9 +21,13 @@ async fn health(db: Data<Database>) -> Health {
     }
 
     if health_check.len() != 0 {
-        Health::new(hash_to_health(health_check))
+        Err(Error::new(
+            hash_to_health(health_check),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .into())
     } else {
-        Health::new("Everything is fine...".to_string())
+        Ok(Health::new("Everything is fine...".to_string()))
     }
 }
 
@@ -46,14 +50,13 @@ mod test {
     use super::*;
     // use crate::core::db::Config;
     use actix_service::Service;
-    use actix_web::{http::StatusCode, test, web::Bytes, App,
-    test::{ read_body, read_body_json, init_service, TestRequest }};
-
-    // fn db_cfg() -> Config {
-    //     Config {
-    //         ..Default::default()
-    //     }
-    // }
+    use actix_web::{
+        http::StatusCode,
+        test,
+        test::{init_service, read_body, read_body_json, TestRequest},
+        web::Bytes,
+        App,
+    };
 
     #[test]
     async fn test_root() {
@@ -69,16 +72,33 @@ mod test {
     async fn test_health() {
         let mut db = Database::default();
         db.expect_health().returning(|| Ok(()));
-        let app = test::init_service(
-            App::new()
-                .service(health)
-                .app_data(Data::new(db)),
-        )
-        .await;
-        let req = test::TestRequest::with_uri("/healthz").to_request();
+        let app = init_service(App::new().service(health).app_data(Data::new(db))).await;
+        let req = TestRequest::with_uri("/healthz").to_request();
         let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let body: Health = read_body_json(resp).await;
         assert_eq!(body, Health::new("Everything is fine...".to_string()))
     }
+
+    // #[test]
+    // async fn test_unhealthy() {
+    //     use neo4rs::Error as NErr;
+    //     let mut db = Database::default();
+    //     db.expect_health()
+    //         .returning(|| Err(NErr::AuthenticationError("".to_string())));
+    //     let app = init_service(App::new().service(health).app_data(Data::new(db))).await;
+    //     let req = TestRequest::with_uri("/healthz").to_request();
+    //     let resp = app.call(req).await.unwrap();
+    //     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    //     let body = read_body(resp).await;
+    //     let mut h: HashMap<&str, String> = HashMap::new();
+    //     h.insert(
+    //         "Database",
+    //         format!("{:?}", NErr::AuthenticationError("".to_string())),
+    //     );
+    //     assert_eq!(
+    //         body,
+    //         Bytes::from(format!("Error: \"{}\"", hash_to_health(h).as_str()))
+    //     )
+    // }
 }
