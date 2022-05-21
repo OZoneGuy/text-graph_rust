@@ -1,8 +1,6 @@
 mod core;
 mod http;
 mod models;
-#[cfg(test)]
-mod test;
 
 use crate::core::db::{Config, Database};
 use http::{root::root_service, topics::topics_service, refs::refs_service};
@@ -86,8 +84,3 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
-
-// #[get("/login")]
-// fn login(_auth: AuthHandler) -> Json<Health> {
-//     Json(Health::new("You are now logged in!".to_string()))
-// }
