@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 actix-web = { version = "4.0.1" }
+actix-service = { version = "2.0.2" }
 serde = { version = "1.0", features = ["derive"] }
 neo4rs = { version = "0.5.9" }
 clap = { version = "3.1.9", features = ["env", "unicode", "wrap_help", "cargo"] }
