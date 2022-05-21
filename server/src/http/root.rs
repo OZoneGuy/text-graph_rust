@@ -20,7 +20,7 @@ async fn health(db: Data<Database>) -> Result<Health> {
         health_check.insert("Database", format!("{:?}", db_err));
     }
 
-    if health_check.len() != 0 {
+    if !health_check.is_empty() {
         Err(Error::new(
             hash_to_health(health_check),
             StatusCode::INTERNAL_SERVER_ERROR,

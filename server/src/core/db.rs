@@ -66,7 +66,7 @@ impl Database {
             }
         }
 
-        return Ok(topics);
+        Ok(topics)
     }
 
     pub async fn add_topic(&self, topic: &str) -> Result<()> {
@@ -173,7 +173,7 @@ impl Database {
                         .get("final_verse")
                         .expect("Couldn't find final_verse attribute in QRef node."),
                 };
-                refs.push(RefEnum::QRef(q_ref));
+                refs.push(RefEnum::Q(q_ref));
             } else if labels.contains(&HREF_LABEL.to_string()) {
                 let h_ref = HRefParams {
                     collection: node
@@ -183,7 +183,7 @@ impl Database {
                         .get("number")
                         .expect("Couldn't find number attribute in HRef node."),
                 };
-                refs.push(RefEnum::HRef(h_ref));
+                refs.push(RefEnum::H(h_ref));
             } else if labels.contains(&BREF_LABEL.to_string()) {
                 let b_ref = BRefParams {
                     isbn: node
@@ -196,7 +196,7 @@ impl Database {
                         .get("page")
                         .expect("Couldn't find page attribute in BRef node."),
                 };
-                refs.push(RefEnum::BRef(b_ref));
+                refs.push(RefEnum::B(b_ref));
             }
         }
 

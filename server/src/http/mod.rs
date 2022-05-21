@@ -1,3 +1,3 @@
-pub mod topics;
-pub mod root;
 pub mod refs;
+pub mod root;
+pub mod topics;

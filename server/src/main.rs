@@ -3,7 +3,7 @@ mod http;
 mod models;
 
 use crate::core::db::{Config, Database};
-use http::{root::root_service, topics::topics_service, refs::refs_service};
+use http::{refs::refs_service, root::root_service, topics::topics_service};
 
 use actix_web::{web, App, HttpServer};
 use clap::{crate_authors, crate_name, crate_version, Arg, ArgGroup, Command};
@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api/v1/")
                     .configure(root_service)
                     .configure(topics_service)
-                    .configure(refs_service)
+                    .configure(refs_service),
             )
     })
     .bind(("localhost", 8080))?

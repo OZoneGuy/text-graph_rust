@@ -24,9 +24,9 @@ pub struct BRefParams {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum RefEnum {
-    QRef(QRefParams),
-    HRef(HRefParams),
-    BRef(BRefParams),
+    Q(QRefParams),
+    H(HRefParams),
+    B(BRefParams),
 }
 impl Responder for RefEnum {
     type Body = BoxBody;
@@ -37,9 +37,6 @@ impl Responder for RefEnum {
 
 impl RefEnum {
     pub fn is_book(&self) -> bool {
-        match self {
-            RefEnum::BRef(_) => true,
-            _ => false,
-        }
+        matches!(self, RefEnum::B(_))
     }
 }

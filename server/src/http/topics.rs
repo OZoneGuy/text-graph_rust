@@ -31,7 +31,7 @@ async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec
     };
     db.get_topics(page_num, size_num)
         .await
-        .map(|v| Json(v))
+        .map(Json)
         .map_err(|e| {
             Error::new(
                 format!("Database error: {:?}", e),

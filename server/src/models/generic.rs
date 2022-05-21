@@ -1,4 +1,7 @@
-use actix_web::{body::BoxBody, http::StatusCode, HttpRequest, HttpResponse, Responder, HttpResponseBuilder, ResponseError};
+use actix_web::{
+    body::BoxBody, http::StatusCode, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
+    ResponseError,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
