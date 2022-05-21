@@ -76,11 +76,13 @@ mod test {
         test::{init_service, read_body, read_body_json, TestRequest},
         App,
     };
+    use neo4rs::Error as NErr;
 
     #[test]
     async fn test_get_topics() {
         let mut db = Database::default();
-        db.expect_get_topics().returning(|_page, _size| Ok(vec!["topic1".to_string(), "topic2".to_string()]));
+        db.expect_get_topics()
+            .returning(|_page, _size| Ok(vec!["topic1".to_string(), "topic2".to_string()]));
 
         let app = init_service(App::new().service(get_topics).app_data(Data::new(db))).await;
         let req = TestRequest::with_uri("/").to_request();
@@ -95,21 +97,82 @@ mod test {
     async fn test_get_topics_bad_query() {
         let db = Database::default();
         let app = init_service(App::new().service(get_topics).app_data(Data::new(db))).await;
-        let req = TestRequest::with_uri("/?page=-1&size=-1")
-            .to_request();
+        let req = TestRequest::with_uri("/?page=-1&size=-1").to_request();
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
         let body = read_body(resp).await;
-            assert_eq!(
-                body,
-                format!(
-                    "{}",
-                    actix_web::Error::from(Error::new(
-                        "Invalid query paramaters. Must be positive integers.".to_string(),
-                        StatusCode::from_u16(400).unwrap()
-                    ))
-                )
+        assert_eq!(
+            body,
+            format!(
+                "{}",
+                actix_web::Error::from(Error::new(
+                    "Invalid query paramaters. Must be positive integers.".to_string(),
+                    StatusCode::from_u16(400).unwrap()
+                ))
             )
+        )
+    }
+
+    #[test]
+    async fn test_get_topics_partial_query() {
+        let mut db = Database::default();
+        db.expect_get_topics()
+            .returning(|_page, _size| Ok(vec!["topic1".to_string(), "topic2".to_string()]));
+        let app = init_service(App::new().service(get_topics).app_data(Data::new(db))).await;
+        let req = TestRequest::with_uri("/?page=1").to_request();
+        let resp = app.call(req).await.unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: Vec<String> = read_body_json(resp).await;
+        assert_eq!(body, vec!["topic1".to_string(), "topic2".to_string()]);
+    }
+
+    #[test]
+    async fn test_add_topic() {
+        let mut db = Database::default();
+        db.expect_add_topic().returning(|_page| Ok(()));
+        let app = init_service(App::new().service(add_topic).app_data(Data::new(db))).await;
+        let topic = NewTopic {
+            id: None,
+            name: "topic1".to_string(),
+        };
+        let req = TestRequest::post().uri("/").set_json(&topic).to_request();
+        let resp = app.call(req).await.unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: Health = read_body_json(resp).await;
+        assert_eq!(
+            body,
+            Health::new(format!("Successfully created {}", topic.name))
+        )
+    }
+
+    #[test]
+    async fn test_add_topic_dup() {
+        let mut db = Database::default();
+        // let err = Err(NErr::UnknownMessage("No dupes!!".to_string()));
+        db.expect_add_topic()
+            .returning(move |_page| Err(NErr::UnknownMessage("No dupes!!".to_string())));
+        let app = init_service(App::new().service(add_topic).app_data(Data::new(db))).await;
+        let topic = NewTopic {
+            id: None,
+            name: "topic1".to_string(),
+        };
+        let req = TestRequest::post().uri("/").set_json(&topic).to_request();
+        let resp = app.call(req).await.unwrap();
+
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = read_body(resp).await;
+        assert_eq!(
+            body,
+            format!(
+                "{}",
+                actix_web::Error::from(Error::new(
+                    NErr::UnknownMessage("No dupes!!".to_string()),
+                    StatusCode::INTERNAL_SERVER_ERROR
+                ))
+            )
+        )
     }
 }
