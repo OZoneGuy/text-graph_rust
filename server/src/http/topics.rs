@@ -151,7 +151,6 @@ mod test {
     #[test]
     async fn test_add_topic_dup() {
         let mut db = Database::default();
-        // let err = Err(NErr::UnknownMessage("No dupes!!".to_string()));
         db.expect_add_topic()
             .returning(move |_page| Err(NErr::UnknownMessage("No dupes!!".to_string())));
         let app = init_service(App::new().service(add_topic).app_data(Data::new(db))).await;
