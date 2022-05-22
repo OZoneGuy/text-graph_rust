@@ -54,7 +54,7 @@ async fn delete_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Healt
         .await
         .map(|_| {
             // info!("Deleted {}", topic.name);
-            Health::new(format!("Successfully delete {}", topic.name))
+            Health::new(format!("Successfully deleted {}", topic.name))
         })
         .map_err(|e| {
             // error!("Failed to delete topic: {:?}", e);
@@ -173,6 +173,27 @@ mod test {
                     StatusCode::INTERNAL_SERVER_ERROR
                 ))
             )
+        )
+    }
+
+    #[test]
+    async fn test_delete_topic() {
+        let mut db = Database::default();
+        db.expect_delete_topic().returning(move |_page| Ok(()));
+        let app = init_service(App::new().service(delete_topic).app_data(Data::new(db))).await;
+        let topic = NewTopic {
+            id: None,
+            name: "topic1".to_string(),
+        };
+        let req = TestRequest::delete().uri("/").set_json(&topic).to_request();
+        let resp = app.call(req).await.unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK, "testing success code");
+        let body: Health = read_body_json(resp).await;
+        assert_eq!(
+            body,
+            Health::new("Successfully deleted topic1".to_string()),
+            "Testing success message"
         )
     }
 }
