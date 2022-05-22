@@ -1,0 +1,10 @@
+#!/bin/bash
+
+echo "running 'rustfmt'..."
+cargo fmt -- --check
+
+echo "running 'clippy'..."
+cargo clippy
+
+echo "running tests..."
+cargo nextest run
