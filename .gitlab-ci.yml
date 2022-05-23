@@ -35,33 +35,37 @@ cache: &golbal_cache
   paths:
     - server/target/debug
 
-tools:
-  stage: .pre
-  script:
-    - rustup component add clippy
-    - rustup component add rustfmt
-    - curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
-
-
 lint:
   stage: lint
   script:
+    - echo -e "\e[0Ksection_start:`date +%s`:installing_tools_section\r\e[0KInstalling Tools..."
+    - rustup component add clippy
+    - rustup component add rustfmt
+    - echo -e "\e[0Ksection_end:`date +%s`:installing_tools_section\r\e[0K"
+
     - echo -e "\e[0Ksection_start:`date +%s`:rustfmt_section\r\e[0KRustfmt..."
     - rustfmt --check
     - echo -e "\e[0Ksection_end:`date +%s`:rustfmt_section\r\e[0K"
+
     - echo -e "\e[0Ksection_start:`date +%s`:clippy_section\r\e[0KClippy..."
     - cargo clippy -- -D warnings
     - echo -e "\e[0Ksection_end:`date +%s`:clippy_section\r\e[0K"
 
 # Use cargo to test the project
 test:cargo:
-    stage: test
-    script:
-      - cargo nextest run
-    artifacts:
-      when: always
-      reports:
-        junit: server/target/nextest/ci/junit.xml
+  stage: test
+  script:
+    - echo -e "\e[0Ksection_start:`date +%s`:installing_nextest_section\r\e[0KInstalling Nextest..."
+    - curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+    - echo -e "\e[0Ksection_end:`date +%s`:installing_nextest_section\r\e[0K"
+
+    - echo -e "\e[0Ksection_start:`date +%s`:testing_section\r\e[0KTesting..."
+    - cargo nextest run
+    - echo -e "\e[0Ksection_end:`date +%s`:testing_section\r\e[0K"
+  artifacts:
+    when: always
+    reports:
+      junit: server/target/nextest/ci/junit.xml
 
 build:
   stage: build
