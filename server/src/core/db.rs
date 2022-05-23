@@ -7,12 +7,20 @@ pub struct Database {
     graph_db: Graph,
 }
 
-const TOPIC_LABEL: &str = "Topic";
-const QREF_LABEL: &str = "QRef";
-const HREF_LABEL: &str = "HRef";
-const BREF_LABEL: &str = "BRef";
+// Locally, I can only have one table/database
+// This is made to differentiate between test data and "prod" data
+// Any labels prefixed with "Test" is test data.
+// Maybe there is a better way to do it?
+const TOPIC_LABEL: &str = if cfg!(not(test)) {
+    "Topic"
+} else {
+    "TestTopic"
+};
+const QREF_LABEL: &str = if cfg!(not(test)) { "QRef" } else { "TestQRef" };
+const HREF_LABEL: &str = if cfg!(not(test)) { "HRef" } else { "TestHRef" };
+const BREF_LABEL: &str = if cfg!(not(test)) { "BRef" } else { "TestBRef" };
 
-const REF_RELATION: &str = "REF";
+const REF_RELATION: &str = if cfg!(not(test)) { "REF" } else { "TestREF" };
 
 #[automock]
 impl Database {
