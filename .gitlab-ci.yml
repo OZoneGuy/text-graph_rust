@@ -22,30 +22,39 @@ image: "rust:latest"
 #   - apt-get update -yqq
 #   - apt-get install -yqq --no-install-recommends build-essential
 stages:
-    - lint
-    - build
     - test
-
-lint:rust:
-    stage: lint
-    script:
-      - rustup component add clippy
-      - rustup component add rustfmt
-      - cd server
-      - rustfmt --check
-      - cargo clippy -- -D warnings
-
-build:cargo:
-    stage: build
-    script:
-      - cd server
-      - cargo build
 
 # Use cargo to test the project
 test:cargo:
     stage: test
     script:
-      - cd server
+      - echo -e "\e[0Ksection_start:`date +%s`:prep_section\r\e[0KInstalling dependencies..."
+      - rustup component add clippy
+      - rustup component add rustfmt
       - curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+      - echo -e "\e[0Ksection_end:`date +%s`:prep_section\r\e[0K"
+
+      - cd server
       - rustc --version && cargo --version  # Print version info for debugging
-      - cargo nextest test
+
+      - echo -e "\e[0Ksection_start:`date +%s`:building_section\r\e[0KBuilding..."
+      - cargo build
+      - echo -e "\e[0Ksection_end:`date +%s`:building_section\r\e[0K"
+
+      - echo -e "\e[0Ksection_start:`date +%s`:linting_section\r\e[0KLinting..."
+      - echo -e "\e[0Ksection_start:`date +%s`:rustfmt_section\r\e[0KRustfmt:"
+      - rustfmt --check
+      - echo -e "\e[0Ksection_end:`date +%s`:rustfmt_section\r\e[0K"
+
+      - echo -e "\e[0Ksection_start:`date +%s`:clippy_section\r\e[0KClippy..."
+      - cargo clippy -- -D warnings
+      - echo -e "\e[0Ksection_end:`date +%s`:clippy_section\r\e[0K"
+      - echo -e "\e[0Ksection_end:`date +%s`:linting_section\r\e[0K"
+
+      - echo -e "\e[0Ksection_start:`date +%s`:testing_section\r\e[0KTesting..."
+      - cargo nextest run
+      - echo -e "\e[0Ksection_end:`date +%s`:testing_section\r\e[0K"
+    artifacts:
+      when: always
+      reports:
+        junit: target/nextest/ci/junit.xml
