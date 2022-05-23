@@ -24,6 +24,7 @@ image: "rust:latest"
 
 before_script:
   - rustc --version && cargo --version && rustup --version  # Print version info for debugging
+  - cd server
 
 stages:
   - lint
