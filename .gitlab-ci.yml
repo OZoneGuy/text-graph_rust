@@ -61,7 +61,7 @@ test:cargo:
     - echo -e "\e[0Ksection_end:`date +%s`:installing_nextest_section\r\e[0K"
 
     - echo -e "\e[0Ksection_start:`date +%s`:testing_section\r\e[0KTesting..."
-    - cargo nextest run
+    - cargo nextest run --profile ci
     - echo -e "\e[0Ksection_end:`date +%s`:testing_section\r\e[0K"
   artifacts:
     when: always
