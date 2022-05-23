@@ -26,27 +26,26 @@ stages:
     - build
     - test
 
-tools:rustup:
-    stage: .pre
-    script:
-        - rustup component add clippy
-        - rustup component add rustfmt
-        - curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
-
 lint:rust:
     stage: lint
     script:
-        - rustfmt --check
-        - cargo clippy -- -D warnings
+      - rustup component add clippy
+      - rustup component add rustfmt
+      - cd server
+      - rustfmt --check
+      - cargo clippy -- -D warnings
 
 build:cargo:
     stage: build
     script:
-        - cargo build
+      - cd server
+      - cargo build
 
 # Use cargo to test the project
 test:cargo:
     stage: test
     script:
+      - cd server
+      - curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
       - rustc --version && cargo --version  # Print version info for debugging
       - cargo nextest test
