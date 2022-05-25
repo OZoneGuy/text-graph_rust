@@ -76,7 +76,7 @@ mod test {
         test::{init_service, read_body, read_body_json, TestRequest},
         App,
     };
-    use neo4rs::Error as NErr;
+    use neo4rs::unexpected;
 
     #[test]
     async fn test_get_topics() {
@@ -151,8 +151,10 @@ mod test {
     #[test]
     async fn test_add_topic_dup() {
         let mut db = Database::default();
+        let response = "";
+        let request = "";
         db.expect_add_topic()
-            .returning(move |_page| Err(NErr::UnknownMessage("No dupes!!".to_string())));
+            .returning(move |_page| Err(unexpected(response, request)));
         let app = init_service(App::new().service(add_topic).app_data(Data::new(db))).await;
         let topic = NewTopic {
             id: None,
@@ -168,7 +170,7 @@ mod test {
             format!(
                 "{}",
                 actix_web::Error::from(Error::new(
-                    NErr::UnknownMessage("No dupes!!".to_string()),
+                    unexpected(response, request),
                     StatusCode::INTERNAL_SERVER_ERROR
                 ))
             )
