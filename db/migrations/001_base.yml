@@ -1,0 +1,23 @@
+# The migration files contain two sections:
+# - up: The commands to execute on migration
+# - down: The commands to execute on rollback (optional)
+# check https://docs.rs/aragog_cli for complete documentation and examples
+---
+up:
+  - create_collection:
+      name: TopicCollection
+  - create_collection:
+      name: QRefCollection
+  - create_collection:
+      name: HRefCollection
+  - create_edge_collection:
+      name: RefEdgeCollection
+down:
+  - delete_collection:
+      name: TopicCollection
+  - delete_collection:
+      name: QRefCollection
+  - delete_collection:
+      name: HRefCollection
+  - delete_edge_collection:
+      name: RefEdgeCollection
