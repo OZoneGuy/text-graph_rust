@@ -69,6 +69,8 @@ async fn main() -> std::io::Result<()> {
             .to_string(),
     };
 
+    Database::migrate().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(Database::new(db_cfg.clone())))

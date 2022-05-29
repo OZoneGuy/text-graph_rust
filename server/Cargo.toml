@@ -7,7 +7,9 @@ edition = "2021"
 actix-web = { version = "4.0.1" }
 actix-service = { version = "2.0.2" }
 serde = { version = "1.0", features = ["derive"] }
-neo4rs = { version = "0.5.9" }
+arangoq = { version = "0.3.4" }
+reqwest = { version = "0.10.6" }
+serde_json = { version = "1.0.81" }
 clap = { version = "3.1.9", features = ["env", "unicode", "wrap_help", "cargo"] }
 mockall = { version = "0.11.1" }
 mockall_double = { version = "0.3.0" }
