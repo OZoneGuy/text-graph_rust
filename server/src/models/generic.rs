@@ -27,12 +27,21 @@ impl Health {
 }
 
 impl Error {
-    pub fn new<E: Debug>(error: E, code: StatusCode) -> Error {
+    pub fn new<E: Debug>(e: E, code: StatusCode) -> Error {
         let version = env!("CARGO_PKG_VERSION").to_string();
         Error {
-            message: format!("{:?}", error),
+            message: format!("{:?}", e),
             version,
             code: code.as_u16(),
+        }
+    }
+
+    pub fn default<E: Debug>(e: E) -> Self {
+        let version = env!("CARGO_PKG_VERSION").to_string();
+        Error {
+            message: format!("{:?}", e),
+            version,
+            code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
         }
     }
 }
