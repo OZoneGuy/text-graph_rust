@@ -63,3 +63,5 @@ impl ResponseError for Error {
         StatusCode::from_u16(self.code).expect("Should have a valid status code")
     }
 }
+
+impl std::error::Error for Error {}
