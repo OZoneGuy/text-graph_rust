@@ -1,10 +1,10 @@
-use actix_web::http::StatusCode;
 use arangoq::ArangoConnection;
 use reqwest::Client;
 use std::process::Command;
 
 use crate::models::generic::Error;
 use crate::models::refs::*;
+use crate::models::topics::{ TopicArangoBuilder, Topic };
 use mockall::automock;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -18,12 +18,12 @@ pub struct Database {
 // This is made to differentiate between test data and "prod" data
 // Any labels prefixed with "Test" is test data.
 // Maybe there is a better way to do it?
-const TOPIC_LABEL: &str = "Topic";
-const QREF_LABEL: &str = "QRef";
-const HREF_LABEL: &str = "HRef";
-const BREF_LABEL: &str = "BRef";
+const TOPIC_LABEL: &str = "TopicCollection";
+const QREF_LABEL: &str = "QRefCollection";
+const HREF_LABEL: &str = "HRefCollection";
+const BREF_LABEL: &str = "BRefCollection";
 
-const REF_RELATION: &str = "REF";
+const REF_RELATION: &str = "RefEdgeCollection";
 
 #[automock]
 impl Database {
@@ -38,7 +38,7 @@ impl Database {
     pub async fn health(&self) -> Result<()> {
         let resp = reqwest::get(&self.host)
             .await
-            .map_err(|e| Error::new(e, StatusCode::INTERNAL_SERVER_ERROR))?;
+            .map_err(Error::default)?;
         if resp.status().is_success() {
             Ok(())
         } else {
@@ -53,20 +53,37 @@ impl Database {
             .args(["-u", "root", "migrate"])
             .output()
             .map(|_| ())
-            .map_err(|e| Error::new(e, StatusCode::INTERNAL_SERVER_ERROR))
+            .map_err(Error::default)
     }
 
-    pub async fn get_topics(&self, page: i64, size: i64) -> Result<Vec<String>> {
-        let skip = (page - 1) * size;
-        todo!()
+    pub async fn get_topics(&self, _page: usize, size: usize) -> Result<Vec<String>> {
+        // This is an issue, no nice way to skip
+        // let skip = (page - 1) * size;
+        let q = TopicArangoBuilder::new(TOPIC_LABEL).read()
+            .limit(size).build();
+        q.try_exec::<Topic>(&self.db).await
+            .map_err(Error::default)
+            .map(|r| r.result.into_iter().map(|t| t.name).collect())
     }
 
-    pub async fn add_topic(&self, topic: &str) -> Result<()> {
-        todo!()
+    pub async fn add_topic(&self, name: &str) -> Result<()> {
+        TopicArangoBuilder::new(TOPIC_LABEL)
+            .create(&Topic{name: name.to_string()})
+            .build()
+            .try_exec::<Topic>(&self.db).await
+            .map(|_| ())
+            .map_err(Error::default)
     }
 
     pub async fn delete_topic(&self, topic: &str) -> Result<()> {
-        todo!()
+        TopicArangoBuilder::new(TOPIC_LABEL)
+            .delete()
+            .filter()
+            .name_eq(&topic.to_string())
+            .build()
+            .try_exec::<Topic>(&self.db).await
+            .map(|_| ())
+            .map_err(Error::default)
     }
 
     pub async fn add_qref_to_topic(&self, topic: &str, q_ref: QRef) -> Result<()> {

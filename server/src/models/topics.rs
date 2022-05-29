@@ -7,7 +7,7 @@ pub struct NewTopic {
     pub id: Option<String>,
 }
 
-#[derive(ArangoBuilder, Serialize)]
+#[derive(ArangoBuilder, Serialize, Deserialize)]
 pub struct Topic {
-    name: String,
+    pub name: String,
 }

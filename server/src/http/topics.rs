@@ -9,8 +9,8 @@ use crate::models::topics::*;
 
 #[derive(Deserialize)]
 struct Pagination {
-    page: Option<i64>,
-    size: Option<i64>,
+    page: Option<usize>,
+    size: Option<usize>,
 }
 
 pub fn topics_service(cfg: &mut ServiceConfig) {
@@ -19,8 +19,8 @@ pub fn topics_service(cfg: &mut ServiceConfig) {
 
 #[get("/")]
 async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec<String>>, Error> {
-    const DEF_PAGE: i64 = 1;
-    const DEF_SIZE: i64 = 50;
+    const DEF_PAGE: usize = 1;
+    const DEF_SIZE: usize = 50;
     let page_num = q.page.unwrap_or(DEF_PAGE);
     let size_num = q.size.unwrap_or(DEF_SIZE);
     if page_num <= 0 || size_num <= 0 {
