@@ -20,7 +20,7 @@ async fn get_references(topic: Query<String>, db: Data<Database>) -> Result<Json
 #[post("/qref")]
 async fn add_qref(
     topic: Query<String>,
-    qref: Json<QRefParams>,
+    qref: Json<QRef>,
     db: Data<Database>,
 ) -> Result<Health> {
     db.add_qref_to_topic(topic.as_str(), qref.0)
@@ -32,7 +32,7 @@ async fn add_qref(
 #[post("/refs/href")]
 async fn add_href(
     topic: Query<String>,
-    href: Json<HRefParams>,
+    href: Json<HRef>,
     db: Data<Database>,
 ) -> Result<Health> {
     db.add_href_to_topic(topic.as_str(), href.0)
