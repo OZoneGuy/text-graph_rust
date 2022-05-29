@@ -1,0 +1,23 @@
+services:
+  arangodb:
+    image: arangodb:3.9
+    ports:
+      - "8529:8529"
+    environment:
+      ARANGO_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - arango_data:/var/lib/arangodb3
+    env_file:
+      - .secrets.env
+      - .env
+
+  text_server:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .secrets.env
+      - .env
+
+volumes:
+  arango_data: {}
