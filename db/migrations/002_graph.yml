@@ -7,7 +7,7 @@ up:
   - create_graph:
       name: Topics
       edge_definitions:
-        - collection: RefCollection
+        - collection: RefEdgeCollection
           from: ["TopicCollection"]
           to: ["QRefCollection", "HRefCollection"]
 down:
