@@ -23,12 +23,6 @@ async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec
     const DEF_SIZE: u32 = 50;
     let page_num = q.page.unwrap_or(DEF_PAGE);
     let size_num = q.size.unwrap_or(DEF_SIZE);
-    if page_num <= 0 || size_num <= 0 {
-        return Err(Error::new(
-            "Invalid query paramaters. Must be positive integers.".to_string(),
-            StatusCode::BAD_REQUEST,
-        ));
-    };
     db.get_topics(page_num, size_num)
         .await
         .map(Json)

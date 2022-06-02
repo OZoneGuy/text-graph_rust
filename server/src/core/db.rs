@@ -24,9 +24,7 @@ impl Database {
             .build()
             .await
             .expect("Failed to create a database connection...");
-        Database {
-            db,
-        }
+        Database { db }
     }
 
     pub async fn health(&self) -> Result<()> {
@@ -115,13 +113,13 @@ impl Database {
         let mut q: Vec<RefEnum> = r
             .get_records::<QRef>()
             .iter()
-            .map(|r| RefEnum::Q( r.record.clone() ))
+            .map(|r| RefEnum::Q(r.record.clone()))
             .collect();
         // Get all HRefs
         let mut h: Vec<RefEnum> = r
             .get_records::<HRef>()
             .iter()
-            .map(|r| RefEnum::H( r.record.clone() ))
+            .map(|r| RefEnum::H(r.record.clone()))
             .collect();
 
         // Put them all in one place

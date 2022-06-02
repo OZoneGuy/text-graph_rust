@@ -19,11 +19,7 @@ async fn get_references(topic: Path<String>, db: Data<Database>) -> Result<Json<
 }
 
 #[post("/{topic}/qref")]
-async fn add_qref(
-    topic: Path<String>,
-    qref: Json<QRef>,
-    db: Data<Database>,
-) -> Result<Health> {
+async fn add_qref(topic: Path<String>, qref: Json<QRef>, db: Data<Database>) -> Result<Health> {
     db.add_qref_to_topic(topic.as_str(), qref.0)
         .await
         .map(|_| Health::new("Created Quran reference successfully".to_string()))
@@ -31,11 +27,7 @@ async fn add_qref(
 }
 
 #[post("/{topic}/href")]
-async fn add_href(
-    topic: Path<String>,
-    href: Json<HRef>,
-    db: Data<Database>,
-) -> Result<Health> {
+async fn add_href(topic: Path<String>, href: Json<HRef>, db: Data<Database>) -> Result<Health> {
     db.add_href_to_topic(topic.as_str(), href.0)
         .await
         .map(|_| Health::new("Created Hadith reference successfully".to_string()))
@@ -78,25 +70,31 @@ mod test {
             _id: None,
             chapter: 0,
             init_verse: 0,
-            final_verse: 0
+            final_verse: 0,
         };
-        let req = TestRequest::post().uri("/topic1/qref").set_json(&qref).to_request();
+        let req = TestRequest::post()
+            .uri("/topic1/qref")
+            .set_json(&qref)
+            .to_request();
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
         let b: Health = read_body_json(resp).await;
-        assert_eq!(b, Health::new("Created Quran reference successfully".to_string()))
+        assert_eq!(
+            b,
+            Health::new("Created Quran reference successfully".to_string())
+        )
     }
 
     #[test]
     async fn test_add_qref_invalid_topic() {
         let mut db = Database::default();
         let e = || {
-            Err( Error::default(AError::NotFound{
+            Err(Error::default(AError::NotFound {
                 item: "".to_string(),
                 id: "".to_string(),
-                source: None
-            }) )
+                source: None,
+            }))
         };
         db.expect_add_qref_to_topic()
             .returning(move |_topic, _qref| e());
@@ -105,9 +103,12 @@ mod test {
             _id: None,
             chapter: 0,
             init_verse: 0,
-            final_verse: 0
+            final_verse: 0,
         };
-        let req = TestRequest::post().uri("/topic1/qref").set_json(&qref).to_request();
+        let req = TestRequest::post()
+            .uri("/topic1/qref")
+            .set_json(&qref)
+            .to_request();
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -124,25 +125,31 @@ mod test {
         let href = HRef {
             _id: None,
             collection: "".to_string(),
-            number: "".to_string()
+            number: "".to_string(),
         };
-        let req = TestRequest::post().uri("/topic1/href").set_json(&href).to_request();
+        let req = TestRequest::post()
+            .uri("/topic1/href")
+            .set_json(&href)
+            .to_request();
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
         let b: Health = read_body_json(resp).await;
-        assert_eq!(b, Health::new("Created Hadith reference successfully".to_string()))
+        assert_eq!(
+            b,
+            Health::new("Created Hadith reference successfully".to_string())
+        )
     }
 
     #[test]
     async fn test_add_href_invalid_topic() {
         let mut db = Database::default();
         let e = || {
-            Err( Error::default(AError::NotFound{
+            Err(Error::default(AError::NotFound {
                 item: "topic1".to_string(),
                 id: "Topic/topic1".to_string(),
-                source: None
-            }) )
+                source: None,
+            }))
         };
         db.expect_add_href_to_topic()
             .returning(move |_topic, _href| e());
@@ -150,9 +157,12 @@ mod test {
         let href = HRef {
             _id: None,
             collection: "".to_string(),
-            number: "".to_string()
+            number: "".to_string(),
         };
-        let req = TestRequest::post().uri("/topic1/href").set_json(&href).to_request();
+        let req = TestRequest::post()
+            .uri("/topic1/href")
+            .set_json(&href)
+            .to_request();
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
