@@ -5,7 +5,7 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub struct Error {
     message: String,
     version: String,

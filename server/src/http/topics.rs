@@ -5,12 +5,12 @@ use serde::Deserialize;
 #[mockall_double::double]
 use crate::core::db::Database;
 use crate::models::generic::*;
-use crate::models::topics::*;
+use crate::models::topics::Topic;
 
 #[derive(Deserialize)]
 struct Pagination {
-    page: Option<usize>,
-    size: Option<usize>,
+    page: Option<u32>,
+    size: Option<u32>,
 }
 
 pub fn topics_service(cfg: &mut ServiceConfig) {
@@ -19,8 +19,8 @@ pub fn topics_service(cfg: &mut ServiceConfig) {
 
 #[get("/")]
 async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec<String>>, Error> {
-    const DEF_PAGE: usize = 1;
-    const DEF_SIZE: usize = 50;
+    const DEF_PAGE: u32 = 1;
+    const DEF_SIZE: u32 = 50;
     let page_num = q.page.unwrap_or(DEF_PAGE);
     let size_num = q.size.unwrap_or(DEF_SIZE);
     if page_num <= 0 || size_num <= 0 {
@@ -41,7 +41,7 @@ async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec
 }
 
 #[post("/")]
-async fn add_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Health> {
+async fn add_topic(topic: Json<Topic>, db: Data<Database>) -> Result<Health> {
     db.add_topic(topic.name.as_str())
         .await
         .map(|_| Health::new(format!("Successfully created {}", topic.name)))
@@ -49,7 +49,7 @@ async fn add_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Health> 
 }
 
 #[delete("/")]
-async fn delete_topic(topic: Json<NewTopic>, db: Data<Database>) -> Result<Health> {
+async fn delete_topic(topic: Json<Topic>, db: Data<Database>) -> Result<Health> {
     db.delete_topic(topic.name.as_str())
         .await
         .map(|_| {
@@ -103,13 +103,7 @@ mod test {
         let body = read_body(resp).await;
         assert_eq!(
             body,
-            format!(
-                "{}",
-                actix_web::Error::from(Error::new(
-                    "Invalid query paramaters. Must be positive integers.".to_string(),
-                    StatusCode::from_u16(400).unwrap()
-                ))
-            )
+            "Query deserialize error: invalid digit found in string"
         )
     }
 
@@ -132,10 +126,7 @@ mod test {
         let mut db = Database::default();
         db.expect_add_topic().returning(|_page| Ok(()));
         let app = init_service(App::new().service(add_topic).app_data(Data::new(db))).await;
-        let topic = NewTopic {
-            id: None,
-            name: "topic1".to_string(),
-        };
+        let topic = Topic::new("topic1");
         let req = TestRequest::post().uri("/").set_json(&topic).to_request();
         let resp = app.call(req).await.unwrap();
 

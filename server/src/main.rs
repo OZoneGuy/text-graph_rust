@@ -30,18 +30,21 @@ fn app<'help>() -> Command<'help> {
              .env("DB_PASSWORD")
              .takes_value(true)
              .required(true))
-        .arg(Arg::new("db_port")
-             .short('P')
-             .help("The port for the Graph database.")
-             .env("DB_PORT")
-             .takes_value(true)
-             .default_value("7687"))
         .arg(Arg::new("db_host")
              .short('H')
              .help("The host for the Graph database.")
              .env("DB_HOST")
              .takes_value(true)
              .default_value("localhost"))
+        .arg(Arg::new("db_name")
+             .short('N')
+             .help("The name of the database")
+             .env("DB_NAME")
+             .default_value("DB"))
+        .arg(Arg::new("schema")
+             .short('S')
+             .help("The path of the schema")
+             .env("SCHEMA_PATH"))
         .group(ArgGroup::new("database")
                .args(&["db_username", "db_pass", "db_port", "db_host"]))
 }
@@ -59,13 +62,17 @@ async fn main() -> std::io::Result<()> {
             .value_of("db_pass")
             .expect("Empty password value")
             .to_string(),
-        port: args
-            .value_of("db_port")
-            .expect("Empty port value")
-            .to_string(),
         address: args
             .value_of("db_host")
             .expect("Empty host value")
+            .to_string(),
+        db_name: args
+            .value_of("db_name")
+            .expect("Empty database value.")
+            .to_string(),
+        schema_path: args
+            .value_of("schema")
+            .expect("Empty schema path.")
             .to_string(),
     };
 
