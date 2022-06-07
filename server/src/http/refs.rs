@@ -4,7 +4,7 @@ use actix_web::{get, post, services, Result};
 #[mockall_double::double]
 use crate::core::db::Database;
 use crate::models::generic::*;
-use crate::models::refs::*;
+use crate::models::refs::{HRef, QRef, RefEnum};
 
 pub fn refs_service(cfg: &mut ServiceConfig) {
     cfg.service(scope("/refs").service(services![get_references, add_qref]));
@@ -20,6 +20,7 @@ async fn get_references(topic: Path<String>, db: Data<Database>) -> Result<Json<
 
 #[post("/{topic}/qref")]
 async fn add_qref(topic: Path<String>, qref: Json<QRef>, db: Data<Database>) -> Result<Health> {
+    qref.validate()?;
     db.add_qref_to_topic(topic.as_str(), qref.0)
         .await
         .map(|_| Health::new("Created Quran reference successfully".to_string()))
