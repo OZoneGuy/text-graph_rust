@@ -4,8 +4,8 @@ mod http;
 mod models;
 
 use crate::core::db::{Config, Database};
-use models::generic::Error;
 use http::{refs::refs_service, root::root_service, topics::topics_service};
+use models::generic::Error;
 
 use actix_web::{web, App, HttpServer};
 use clap::{crate_authors, crate_name, crate_version, Arg, ArgGroup, Command};

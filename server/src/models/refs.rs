@@ -1,9 +1,9 @@
+use super::generic::Error;
+use crate::Result as CResult;
 use actix_web::{body::BoxBody, HttpRequest, HttpResponse, Responder};
 use aragog::Record;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use crate::Result as CResult;
-use super::generic::Error;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Record)]
 pub struct QRef {
@@ -57,10 +57,10 @@ impl RefEnum {
 impl QRef {
     pub fn validate(&self) -> CResult<()> {
         if self.chapter > 114 {
-            return Err(Error::default("Invalid chapter number"))
+            return Err(Error::default("Invalid chapter number"));
         }
         if self.final_verse < self.init_verse {
-            return Err(Error::default("Final verse is before initial verse"))
+            return Err(Error::default("Final verse is before initial verse"));
         }
         Ok(())
     }
