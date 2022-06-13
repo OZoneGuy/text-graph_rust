@@ -62,7 +62,7 @@ impl Database {
     }
 
     pub async fn delete_topic(&self, topic: &str) -> Result<()> {
-        DatabaseRecord::<Topic>::find(&format!("{}/{}", Topic::COLLECTION_NAME, topic), &self.db)
+        DatabaseRecord::<Topic>::find(topic, &self.db)
             .await
             .map_err(Error::default)?
             .delete(&self.db)
@@ -71,12 +71,16 @@ impl Database {
             .map_err(Error::default)
     }
 
+    #[allow(unreachable_code)]
+    #[allow(unused_variables)]
     pub async fn add_qref_to_topic(&self, topic: &str, q_ref: QRef) -> Result<()> {
+        panic!("Current set up is broken in aragog 0.16.1");
         let t = Transaction::new(&self.db).await.map_err(Error::default)?;
         t.safe_execute(|con| async move {
             let r = DatabaseRecord::create(q_ref, &con).await?;
             let to = Topic::find(topic, &con).await?;
             DatabaseRecord::link(&to, &r, &con, RefEdge {}).await?;
+            log::debug!("linked topic");
             Ok(())
         })
         .await
