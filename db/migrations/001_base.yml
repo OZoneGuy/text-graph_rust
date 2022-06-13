@@ -5,19 +5,19 @@
 ---
 up:
   - create_collection:
-      name: TopicCollection
+      name: Topic
   - create_collection:
-      name: QRefCollection
+      name: QRef
   - create_collection:
-      name: HRefCollection
+      name: HRef
   - create_edge_collection:
-      name: RefEdgeCollection
+      name: RefEdge
 down:
   - delete_collection:
-      name: TopicCollection
+      name: Topic
   - delete_collection:
-      name: QRefCollection
+      name: QRef
   - delete_collection:
-      name: HRefCollection
+      name: HRef
   - delete_edge_collection:
-      name: RefEdgeCollection
+      name: RefEdge

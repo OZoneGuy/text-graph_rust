@@ -5,13 +5,13 @@
 ---
 version: 3
 collections:
-  - name: TopicCollection
+  - name: Topic
     is_edge_collection: false
-  - name: QRefCollection
+  - name: QRef
     is_edge_collection: false
-  - name: HRefCollection
+  - name: HRef
     is_edge_collection: false
-  - name: RefEdgeCollection
+  - name: RefEdge
     is_edge_collection: true
 indexes:
   - name: TopicIndex
