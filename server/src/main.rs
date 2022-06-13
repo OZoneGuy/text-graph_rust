@@ -7,8 +7,8 @@ use crate::core::db::{Config, Database};
 use http::{refs::refs_service, root::root_service, topics::topics_service};
 use models::generic::Error;
 
-use actix_web::{web, App, HttpServer};
-use clap::{crate_authors, crate_name, crate_version, Arg, ArgGroup, Command};
+use actix_web::{middleware::Logger, web, App, HttpServer};
+use clap::{crate_authors, crate_name, crate_version, Arg, Command};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -54,6 +54,12 @@ fn app<'help>() -> Command<'help> {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let args = app().get_matches();
+
+    if args.is_present("dev") {
+        env_logger::Builder::new()
+            .filter_level(log::LevelFilter::Debug)
+            .init();
+    };
 
     let db_cfg = Config {
         username: args
