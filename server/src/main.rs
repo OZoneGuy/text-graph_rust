@@ -26,7 +26,7 @@ fn app<'help>() -> Command<'help> {
              .help("The username for the Graph database. Defaults to neo4j")
              .env("DB_USERNAME")
              .takes_value(true)
-             .default_value("neo4j"))
+             .default_value("user"))
         .arg(Arg::new("db_pass")
              .short('p')
              .help("The password for the Graph database.")
@@ -47,9 +47,8 @@ fn app<'help>() -> Command<'help> {
         .arg(Arg::new("schema")
              .short('S')
              .help("The path of the schema")
-             .env("SCHEMA_PATH"))
-        .group(ArgGroup::new("database")
-               .args(&["db_username", "db_pass", "db_port", "db_host"]))
+             .env("SCHEMA_PATH")
+             .takes_value(true))
 }
 
 #[actix_web::main]
