@@ -14,7 +14,7 @@ struct Pagination {
 }
 
 pub fn topics_service(cfg: &mut ServiceConfig) {
-    cfg.service(scope("/topics").service(services![get_topics, add_topic]));
+    cfg.service(scope("/topics").service(services![get_topics, add_topic, delete_topic]));
 }
 
 #[get("/")]

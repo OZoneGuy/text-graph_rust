@@ -78,25 +78,35 @@ async fn main() -> std::io::Result<()> {
             .value_of("db_name")
             .expect("Empty database value.")
             .to_string(),
-        schema_path: args
-            .value_of("schema")
-            .expect("Empty schema path.")
-            .to_string(),
+        schema_path: format!(
+            "{}/schema.yaml",
+            args.value_of("schema").expect("Empty schema path.")
+        ),
     };
 
     Database::migrate().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
+    let db_fact = move || {
+        let cfg = db_cfg.clone();
+        async move {
+            let db = Database::new(cfg.clone()).await;
+            Ok::<Database, ()>(db)
+        }
+    };
+
+    println!("Running the server...");
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(Database::new(db_cfg.clone())))
+            .wrap(Logger::default())
+            .data_factory(db_fact.clone())
             .service(
-                web::scope("/api/v1/")
-                    .configure(root_service)
+                web::scope("/api/v1")
                     .configure(topics_service)
-                    .configure(refs_service),
+                    .configure(refs_service)
+                    .configure(root_service),
             )
     })
-    .bind(("localhost", 8080))?
+    .bind(("localhost", 8000))?
     .run()
     .await
 }

@@ -9,7 +9,7 @@ use crate::core::db::Database;
 use crate::models::generic::*;
 
 pub fn root_service(cfg: &mut ServiceConfig) {
-    cfg.service(scope("/").service(services![health, root]));
+    cfg.service(scope("").service(services![health, root]));
 }
 
 #[get("/healthz")]
