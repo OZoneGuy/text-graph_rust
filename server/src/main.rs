@@ -10,6 +10,9 @@ use models::generic::Error;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use clap::{crate_authors, crate_name, crate_version, Arg, Command};
 
+#[cfg(debug_assertions)]
+use dotenv::{dotenv, from_filename};
+
 type Result<T> = std::result::Result<T, Error>;
 
 fn app<'help>() -> Command<'help> {
@@ -53,6 +56,12 @@ fn app<'help>() -> Command<'help> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    #[cfg(debug_assertions)]
+    {
+        dotenv().ok();
+        from_filename(".secrets.env").ok();
+    }
+
     let args = app().get_matches();
 
     if args.is_present("dev") {
