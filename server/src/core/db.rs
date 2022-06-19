@@ -74,7 +74,6 @@ impl Database {
     #[allow(unreachable_code)]
     #[allow(unused_variables)]
     pub async fn add_qref_to_topic(&self, topic: &str, q_ref: QRef) -> Result<()> {
-        panic!("Current set up is broken in aragog 0.16.1");
         let t = Transaction::new(&self.db).await.map_err(Error::default)?;
         t.safe_execute(|con| async move {
             let r = DatabaseRecord::create(q_ref, &con).await?;

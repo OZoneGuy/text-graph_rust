@@ -9,7 +9,7 @@ actix-web = { version = "4.0.1" }
 actix-service = { version = "2.0.2" }
 
 ## Database
-aragog = { version = "0.16.1" }
+aragog = { version = "0.17" }
 
 ## Serializatin and json support
 serde = { version = "1.0.133", features = ["derive"] }
@@ -22,5 +22,6 @@ clap = { version = "3.1.9", features = ["env", "unicode", "wrap_help", "cargo"] 
 mockall = { version = "0.11.1" }
 mockall_double = { version = "0.3.0" }
 
+## Logging
 env_logger = { version = "0.9.0" }
 log = { version = "0.4.17" }
