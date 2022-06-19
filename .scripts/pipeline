@@ -3,7 +3,7 @@
 set -e
 
 echo "running 'rustfmt'..."
-cargo fmt -- --check
+cargo fmt
 
 echo "running 'clippy'..."
 cargo clippy
