@@ -134,7 +134,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .data_factory(db_fact.clone())
             .app_data(actix_web::web::Data::new(AuthHandler::new(
-                "http://localhost".to_string(),
+                "http://localhost:8000".to_string(),
                 client_secret.clone(),
                 client_id.clone(),
             )))

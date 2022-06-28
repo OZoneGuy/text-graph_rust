@@ -18,13 +18,12 @@ async fn login(auth: Data<AuthHandler>, db: Data<Database>) -> Result<impl Respo
         .ok_or(Error::default("Failed to get login url"))
         .map(|h| {
             HttpResponse::Found()
-                .append_header(("location", url.path()))
-                .append_header(("host", format!("{}", h)))
+                .append_header(("location", url.as_str()))
                 .finish()
         })
 }
 
-#[post("/authorize")]
+#[get("/authorize")]
 async fn authorize(q: Query<HashMap<String, String>>) -> String {
     for (k, v) in q.into_inner() {
         log::debug!("Key: {}, value: {}", k, v);
