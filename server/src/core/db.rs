@@ -2,6 +2,7 @@ use aragog::query::{Query, QueryResult};
 use aragog::transaction::Transaction;
 use aragog::{DatabaseConnection, DatabaseRecord, Record};
 
+use super::auth::SessionRecord;
 use crate::models::generic::Error;
 use crate::models::refs::*;
 use crate::models::topics::Topic;
@@ -71,8 +72,6 @@ impl Database {
             .map_err(Error::default)
     }
 
-    #[allow(unreachable_code)]
-    #[allow(unused_variables)]
     pub async fn add_qref_to_topic(&self, topic: &str, q_ref: QRef) -> Result<()> {
         let t = Transaction::new(&self.db).await.map_err(Error::default)?;
         t.safe_execute(|con| async move {
@@ -128,6 +127,33 @@ impl Database {
         // Put them all in one place
         q.append(&mut h);
         Ok(q)
+    }
+
+    pub async fn add_session(&self, session: SessionRecord) -> Result<()> {
+        DatabaseRecord::create(session, &self.db)
+            .await
+            .map_err(Error::default)
+            .map(|_| ())
+    }
+
+    pub async fn get_session(&self, state: String) -> Result<SessionRecord> {
+        SessionRecord::find(&state, &self.db)
+            .await
+            .map(|r| r.record)
+            .map_err(Error::default)
+    }
+
+    pub async fn update_session(
+        &self,
+        state: String,
+        session_token: String,
+    ) -> Result<SessionRecord> {
+        let mut sess_doc: DatabaseRecord<SessionRecord> = SessionRecord::find(&state, &self.db)
+            .await
+            .map_err(Error::default)?;
+        sess_doc.record.session = Some(session_token);
+        sess_doc.save(&self.db).await.map_err(Error::default)?;
+        Ok(sess_doc.record)
     }
 }
 
