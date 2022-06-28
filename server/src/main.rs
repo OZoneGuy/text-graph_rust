@@ -3,8 +3,9 @@ mod core;
 mod http;
 mod models;
 
+use crate::core::auth::AuthHandler;
 use crate::core::db::{Config, Database};
-use http::{refs::refs_service, root::root_service, topics::topics_service};
+use http::{auth::auth_service, refs::refs_service, root::root_service, topics::topics_service};
 use models::generic::Error;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
@@ -51,6 +52,14 @@ fn app<'help>() -> Command<'help> {
              .short('S')
              .help("The path of the schema")
              .env("SCHEMA_PATH")
+             .takes_value(true))
+        .arg(Arg::new("client_secret")
+             .help("The client secret. Retrieved from Azure AD")
+             .env("AD_SECRET")
+             .takes_value(true))
+        .arg(Arg::new("client_id")
+             .help("The client ID. Retrieved from Azure AD")
+             .env("AD_SECRET_ID")
              .takes_value(true))
 }
 
@@ -103,15 +112,37 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    let client_secret: String = args
+        .value_of("client_secret")
+        .expect("client_secret is not set")
+        .to_string();
+    let client_id: String = args
+        .value_of("client_id")
+        .expect("Client ID is not set")
+        .to_string();
+
+    // let auth_fact = move || {
+    //     let localhost = "localhost".to_string();
+    //     let cs = client_secret.clone();
+    //     let cid = client_id.clone();
+    //     async move { AuthHandler::new(localhost, cs, cid) }
+    // };
+
     println!("Running the server...");
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .data_factory(db_fact.clone())
+            .app_data(actix_web::web::Data::new(AuthHandler::new(
+                "http://localhost".to_string(),
+                client_secret.clone(),
+                client_id.clone(),
+            )))
             .service(
                 web::scope("/api/v1")
                     .configure(topics_service)
                     .configure(refs_service)
+                    .configure(auth_service)
                     .configure(root_service),
             )
     })

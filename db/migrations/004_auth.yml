@@ -1,0 +1,6 @@
+up:
+  - create_collection:
+      name: SessionRecord
+down:
+  - delete_collection:
+      name: SessionRecord

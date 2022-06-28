@@ -3,7 +3,7 @@
 # Editing it will have no effect.
 # 
 ---
-version: 3
+version: 4
 collections:
   - name: Topic
     is_edge_collection: false
@@ -13,6 +13,8 @@ collections:
     is_edge_collection: false
   - name: RefEdge
     is_edge_collection: true
+  - name: SessionRecord
+    is_edge_collection: false
 indexes:
   - name: TopicIndex
     collection: TopicCollection
