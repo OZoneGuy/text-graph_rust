@@ -4,7 +4,7 @@ use crate::models::generic::Error;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use aragog::Record;
 use core::future::Future;
-use oauth2::reqwest::http_client;
+use oauth2::reqwest::async_http_client;
 use oauth2::{
     basic::BasicClient, AccessToken, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
     PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
@@ -21,9 +21,9 @@ pub struct AuthHandler {
 
 #[derive(Serialize, Deserialize, Clone, Record, Debug, PartialEq)]
 pub struct SessionRecord {
-    #[serde(rename = "_key")]
+    #[serde(rename = "_key", skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
-    pub session: Option<String>,
+    pub token: Option<String>,
     pub verifier: String,
 }
 
@@ -72,7 +72,7 @@ impl AuthHandler {
             .url();
         db.add_session(SessionRecord {
             key: Some(rand_state),
-            session: None,
+            token: None,
             verifier: pkce_verifier.secret().clone(),
         })
         .await
@@ -81,19 +81,20 @@ impl AuthHandler {
 
     pub async fn validate_token(
         &self,
-        db: Database,
-        token: String,
-        state: String,
+        db: &Database,
+        token: &str,
+        state: &str,
     ) -> Result<AccessToken, Error> {
         // 1. Retreive the pkce verifier, using the state
-        let s = db.get_session(state).await?;
+        let s = db.get_session(state.to_string()).await?;
 
         // 2. Get the token result
         let token_result = self
             .client
-            .exchange_code(AuthorizationCode::new(token))
+            .exchange_code(AuthorizationCode::new(token.to_string()))
             .set_pkce_verifier(PkceCodeVerifier::new(s.verifier.clone()))
-            .request(http_client)
+            .request_async(async_http_client)
+            .await
             .map_err(Error::default)?;
 
         // 3. Return the Access token. To be saved in the session
@@ -106,7 +107,7 @@ impl AuthHandler {
         .map_err(Error::default)
         .map(|s| {
             oauth2::AccessToken::new(
-                s.session
+                s.token
                     .expect("Failed to set the session token and retrieve it"),
             )
         })
@@ -165,7 +166,7 @@ mod test {
     fn serialize_session_struct() {
         let s = SessionRecord {
             key: Some("Random".to_string()),
-            session: None,
+            token: None,
             verifier: "Verifier".to_string(),
         };
         let val = json!({

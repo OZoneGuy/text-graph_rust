@@ -151,7 +151,8 @@ impl Database {
         let mut sess_doc: DatabaseRecord<SessionRecord> = SessionRecord::find(&state, &self.db)
             .await
             .map_err(Error::default)?;
-        sess_doc.record.session = Some(session_token);
+        sess_doc.key = None;
+        sess_doc.token = Some(session_token);
         sess_doc.save(&self.db).await.map_err(Error::default)?;
         Ok(sess_doc.record)
     }
