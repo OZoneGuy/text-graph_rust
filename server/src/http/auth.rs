@@ -1,6 +1,6 @@
 use actix_web::web::{scope, Data, Query, ServiceConfig};
 use actix_web::{get, services, HttpResponse};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::core::auth::AuthHandler;
 #[mockall_double::double]
@@ -11,15 +11,25 @@ pub fn auth_service(cfg: &mut ServiceConfig) {
     cfg.service(scope("/auth").service(services![login, authorize]));
 }
 
+#[derive(Deserialize)]
+struct Referrer {
+    referrer: Option<String>,
+}
+
 #[get("/login")]
-async fn login(auth: Data<AuthHandler>, db: Data<Database>) -> Result<HttpResponse, Error> {
-    let url = auth.login(db.get_ref()).await?;
+async fn login(
+    auth: Data<AuthHandler>,
+    db: Data<Database>,
+    referrer: Query<Referrer>,
+) -> Result<HttpResponse, Error> {
+    let r = referrer.0.referrer.unwrap_or("/api/v1/".to_string());
+    let url = auth.login(db.get_ref(), &r).await?;
     Ok(HttpResponse::Found()
         .append_header(("location", url.as_str()))
         .finish())
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct AuthResponse {
     code: String,
     state: String,
@@ -30,9 +40,20 @@ async fn authorize(
     q: Query<AuthResponse>,
     auth: Data<AuthHandler>,
     db: Data<Database>,
-) -> Result<String, Error> {
+) -> Result<HttpResponse, Error> {
+    let state_split: Vec<&str> = q.state.split('&').collect(); // First is the ID and the second element is the referrer
+    let state = state_split
+        .get(0)
+        .ok_or_else(|| Error::default("Failed to get the state"))?
+        .trim_start_matches("State=");
+    let referrer = state_split
+        .get(1)
+        .unwrap_or(&"/api/v1/")
+        .trim_start_matches("Referrer=");
     auth.get_ref()
-        .validate_token(db.get_ref(), &q.code, &q.state)
+        .validate_token(db.get_ref(), &q.code, state)
         .await?;
-    Ok(format!("Token: {}, state: {}", q.code, q.state))
+    Ok(HttpResponse::Found()
+        .append_header(("location", referrer))
+        .finish())
 }

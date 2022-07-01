@@ -54,7 +54,7 @@ impl AuthHandler {
         AuthHandler { client }
     }
 
-    pub async fn login(&self, db: &Database) -> Result<oauth2::url::Url, Error> {
+    pub async fn login(&self, db: &Database, referrer: &str) -> Result<oauth2::url::Url, Error> {
         let rand_state: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
@@ -64,7 +64,13 @@ impl AuthHandler {
 
         let (u, _csrf_token) = self
             .client
-            .authorize_url(|| CsrfToken::new(rand_state.clone()))
+            .authorize_url(|| {
+                CsrfToken::new(format!(
+                    "State={}&Referrer={}",
+                    rand_state.clone(),
+                    referrer
+                ))
+            })
             .add_scope(Scope::new("openid".to_string()))
             .add_scope(Scope::new("profile".to_string()))
             // .add_extra_param("state", &rand_state)
@@ -207,7 +213,7 @@ mod test {
             "secret".to_string(),
             "id".to_string(),
         );
-        let url_result = auth.login(&db).await;
+        let url_result = auth.login(&db, "base").await;
         assert!(url_result.is_ok(), "Created auth url successfully");
         let url = url_result.unwrap();
         assert_eq!(
