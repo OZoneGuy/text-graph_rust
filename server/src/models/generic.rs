@@ -71,6 +71,10 @@ impl ResponseError for Error {
     fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.code).expect("Should have a valid status code")
     }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        HttpResponse::build(self.status_code()).json(self)
+    }
 }
 
 impl std::error::Error for Error {}
