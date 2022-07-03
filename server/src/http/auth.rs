@@ -1,7 +1,6 @@
 use actix_web::cookie::Cookie;
 use actix_web::web::{scope, Data, Query, ServiceConfig};
 use actix_web::{get, services, HttpRequest, HttpResponse};
-use actix_web_lab::middleware::from_fn;
 use serde::{Deserialize, Serialize};
 
 use crate::core::auth::AuthHandler;

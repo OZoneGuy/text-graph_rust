@@ -143,7 +143,7 @@ impl AuthHandler {
                         .is_lt())
                 })
             })
-            .unwrap_or_else(|| Ok(false))
+            .unwrap_or(Ok(false))
     }
 
     pub async fn middleware(
@@ -187,7 +187,7 @@ impl AuthHandler {
                 .finish()
                 .map_into_boxed_body();
             let (request, _) = req.into_parts();
-            return Ok(ServiceResponse::new(request, resp));
+            Ok(ServiceResponse::new(request, resp))
         }
     }
 }
