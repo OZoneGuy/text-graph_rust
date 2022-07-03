@@ -2,7 +2,7 @@ use aragog::query::{Query, QueryResult};
 use aragog::transaction::Transaction;
 use aragog::{DatabaseConnection, DatabaseRecord, Record};
 
-use super::auth::SessionRecord;
+use super::auth::{SessionRecord, Token};
 use crate::models::generic::Error;
 use crate::models::refs::*;
 use crate::models::topics::Topic;
@@ -129,8 +129,8 @@ impl Database {
         Ok(q)
     }
 
-    pub async fn add_session(&self, session: SessionRecord) -> Result<()> {
-        DatabaseRecord::create(session, &self.db)
+    pub async fn add_session(&self, key: String, session: SessionRecord) -> Result<()> {
+        DatabaseRecord::create_with_key(session, key, &self.db)
             .await
             .map_err(Error::default)
             .map(|_| ())
@@ -143,16 +143,11 @@ impl Database {
             .map_err(Error::default)
     }
 
-    pub async fn update_session(
-        &self,
-        state: String,
-        session_token: String,
-    ) -> Result<SessionRecord> {
+    pub async fn update_session(&self, state: String, token: Token) -> Result<SessionRecord> {
         let mut sess_doc: DatabaseRecord<SessionRecord> = SessionRecord::find(&state, &self.db)
             .await
             .map_err(Error::default)?;
-        sess_doc.key = None;
-        sess_doc.token = Some(session_token);
+        sess_doc.token = Some(token);
         sess_doc.save(&self.db).await.map_err(Error::default)?;
         Ok(sess_doc.record)
     }

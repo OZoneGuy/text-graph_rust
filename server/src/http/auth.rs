@@ -1,5 +1,6 @@
+use actix_web::cookie::Cookie;
 use actix_web::web::{scope, Data, Query, ServiceConfig};
-use actix_web::{get, services, HttpResponse};
+use actix_web::{get, services, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::core::auth::AuthHandler;
@@ -21,11 +22,31 @@ async fn login(
     auth: Data<AuthHandler>,
     db: Data<Database>,
     referrer: Query<Referrer>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
-    let r = referrer.0.referrer.unwrap_or("/api/v1/".to_string());
-    let url = auth.login(db.get_ref(), &r).await?;
+    let r = referrer
+        .0
+        .referrer
+        .unwrap_or_else(|| "/api/v1/".to_string());
+    let (url, session) = auth.login(db.get_ref(), &r).await?;
+
+    let host = req
+        .headers()
+        .get(actix_web::http::header::ORIGIN)
+        .map(|hv| hv.to_str())
+        .transpose()
+        .map_err(Error::default)?;
+
+    // Save session to cookie
+    let session_cookie = Cookie::build("ir_session", session)
+        .domain(host.unwrap_or("localhost"))
+        .path("/api/v1/")
+        .secure(true)
+        .finish();
+    // Redirect to login
     Ok(HttpResponse::Found()
         .append_header(("location", url.as_str()))
+        .cookie(session_cookie)
         .finish())
 }
 
@@ -51,7 +72,7 @@ async fn authorize(
         .unwrap_or(&"/api/v1/")
         .trim_start_matches("Referrer=");
     auth.get_ref()
-        .validate_token(db.get_ref(), &q.code, state)
+        .get_token(db.get_ref(), &q.code, state)
         .await?;
     Ok(HttpResponse::Found()
         .append_header(("location", referrer))

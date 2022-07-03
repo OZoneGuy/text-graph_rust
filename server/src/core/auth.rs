@@ -6,7 +6,7 @@ use aragog::Record;
 use core::future::Future;
 use oauth2::reqwest::async_http_client;
 use oauth2::{
-    basic::BasicClient, AccessToken, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
+    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
     PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use rand::{distributions::Alphanumeric, Rng};
@@ -21,17 +21,17 @@ pub struct AuthHandler {
 
 #[derive(Serialize, Deserialize, Clone, Record, Debug, PartialEq)]
 pub struct SessionRecord {
-    #[serde(rename = "_key", skip_serializing_if = "Option::is_none")]
-    pub key: Option<String>,
-    pub token: Option<String>,
     pub verifier: String,
+    pub token: Option<Token>,
 }
 
-#[allow(dead_code)]
-#[derive(Debug)]
-pub enum AuthError {
-    // PrivilegeError,
-    Unauthorised,
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct Token {
+    pub token_type: String,
+    pub token: String,
+    pub creation_date: std::time::SystemTime,
+    pub expiration: Option<core::time::Duration>,
+    pub refresh_token: Option<String>,
 }
 
 impl AuthHandler {
@@ -42,8 +42,8 @@ impl AuthHandler {
         let token_url =
             TokenUrl::new(format!("{}/token", base_url)).expect("Failed to create TokenUrl");
         let client = BasicClient::new(
-            ClientId::new(client_id.clone()),
-            Some(ClientSecret::new(client_secret.clone())),
+            ClientId::new(client_id),
+            Some(ClientSecret::new(client_secret)),
             auth_url,
             Some(token_url),
         )
@@ -54,14 +54,32 @@ impl AuthHandler {
         AuthHandler { client }
     }
 
-    pub async fn login(&self, db: &Database, referrer: &str) -> Result<oauth2::url::Url, Error> {
+    pub async fn login(
+        &self,
+        db: &Database,
+        referrer: &str,
+    ) -> Result<(oauth2::url::Url, String), Error> {
+        // Create random state
+        // To be saved in the browser
         let rand_state: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
             .map(char::from)
             .collect();
+        // get a verifier for the code token
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
+        // Save session in the database
+        db.add_session(
+            rand_state.clone(),
+            SessionRecord {
+                token: None,
+                verifier: pkce_verifier.secret().clone(),
+            },
+        )
+        .await?;
+
+        // Create URL to get auth code
         let (u, _csrf_token) = self
             .client
             .authorize_url(|| {
@@ -73,31 +91,21 @@ impl AuthHandler {
             })
             .add_scope(Scope::new("openid".to_string()))
             .add_scope(Scope::new("profile".to_string()))
-            // .add_extra_param("state", &rand_state)
             .set_pkce_challenge(pkce_challenge)
             .url();
-        db.add_session(SessionRecord {
-            key: Some(rand_state),
-            token: None,
-            verifier: pkce_verifier.secret().clone(),
-        })
-        .await
-        .map(|_| u)
+
+        // Return url and state
+        Ok((u, rand_state))
     }
 
-    pub async fn validate_token(
-        &self,
-        db: &Database,
-        token: &str,
-        state: &str,
-    ) -> Result<AccessToken, Error> {
+    pub async fn get_token(&self, db: &Database, code: &str, state: &str) -> Result<(), Error> {
         // 1. Retreive the pkce verifier, using the state
         let s = db.get_session(state.to_string()).await?;
 
         // 2. Get the token result
         let token_result = self
             .client
-            .exchange_code(AuthorizationCode::new(token.to_string()))
+            .exchange_code(AuthorizationCode::new(code.to_string()))
             .set_pkce_verifier(PkceCodeVerifier::new(s.verifier.clone()))
             .request_async(async_http_client)
             .await
@@ -105,18 +113,19 @@ impl AuthHandler {
 
         // 3. Return the Access token. To be saved in the session
         // 3a. Save the token information in the database?
-        db.update_session(
-            s.key.expect("Didn't get the required key"),
-            token_result.access_token().secret().clone(),
-        )
-        .await
-        .map_err(Error::default)
-        .map(|s| {
-            oauth2::AccessToken::new(
-                s.token
-                    .expect("Failed to set the session token and retrieve it"),
-            )
-        })
+        let token: Token = Token {
+            token_type: token_result.token_type().as_ref().to_string(),
+            token: token_result.access_token().secret().to_string(),
+            expiration: token_result.expires_in(),
+            creation_date: std::time::SystemTime::now(),
+            refresh_token: token_result
+                .refresh_token()
+                .map(|r| oauth2::RefreshToken::secret(r).clone()),
+        };
+        db.update_session(state.to_string(), token)
+            .await
+            .map_err(Error::default)
+            .map(|_| ())
     }
 }
 
@@ -158,36 +167,18 @@ where
     // Should check if the user is logged in here or not. Otherwise, redirect to mocrosoft for login
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let fut = self.service.call(req);
-        Box::pin(async move { Ok(fut.await?) })
+        Box::pin(async move { fut.await })
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use serde_json::{from_value, json, to_string};
     use std::borrow::Cow;
 
     #[test]
-    fn serialize_session_struct() {
-        let s = SessionRecord {
-            key: Some("Random".to_string()),
-            token: None,
-            verifier: "Verifier".to_string(),
-        };
-        let val = json!({
-            "_key": "Random",
-            "session": null,
-            "verifier": "Verifier"
-        });
-        assert!(serde_json::to_string(&s).is_ok());
-        assert_eq!(to_string(&s).unwrap(), to_string(&val).unwrap());
-        assert_eq!(from_value::<SessionRecord>(val).unwrap(), s)
-    }
-
-    #[test]
     fn test_new() {
-        let auth = AuthHandler::new(
+        let _auth = AuthHandler::new(
             "http://localhost".to_string(),
             "secret".to_string(),
             "id".to_string(),
@@ -197,7 +188,7 @@ mod test {
     #[test]
     #[should_panic]
     fn test_new_bad_host() {
-        let auth = AuthHandler::new(
+        let _auth = AuthHandler::new(
             "localhost".to_string(),
             "secret".to_string(),
             "id".to_string(),
@@ -207,7 +198,7 @@ mod test {
     #[actix_web::test]
     async fn get_login_url() {
         let mut db = Database::default();
-        db.expect_add_session().returning(|_| Ok(()));
+        db.expect_add_session().returning(|_, _| Ok(()));
         let auth = AuthHandler::new(
             "http://localhost".to_string(),
             "secret".to_string(),
@@ -215,7 +206,7 @@ mod test {
         );
         let url_result = auth.login(&db, "base").await;
         assert!(url_result.is_ok(), "Created auth url successfully");
-        let url = url_result.unwrap();
+        let (url, _) = url_result.unwrap();
         assert_eq!(
             url.path(),
             "/common/oauth2/v2.0/authorize",
