@@ -1,9 +1,12 @@
 #[mockall_double::double]
 use super::db::Database;
 use crate::models::generic::Error;
-use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
+use actix_web::body::MessageBody;
+use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::error::Error as AError;
+use actix_web::HttpResponse;
+use actix_web_lab::middleware::Next;
 use aragog::Record;
-use core::future::Future;
 use oauth2::reqwest::async_http_client;
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
@@ -11,8 +14,6 @@ use oauth2::{
 };
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
-use std::future::{ready, Ready};
-use std::pin::Pin;
 
 #[derive(Debug, Clone)]
 pub struct AuthHandler {
@@ -127,47 +128,67 @@ impl AuthHandler {
             .map_err(Error::default)
             .map(|_| ())
     }
-}
 
-impl<S, B> Transform<S, ServiceRequest> for AuthHandler
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = Error;
-    type InitError = ();
-    type Transform = AuthMiddleWare<S>;
-    type Future = Ready<Result<Self::Transform, Self::InitError>>;
-
-    fn new_transform(&self, service: S) -> Self::Future {
-        let auth = (*self).clone();
-        ready(Ok(AuthMiddleWare { auth, service }))
+    pub async fn is_logged_in(&self, db: &Database, session: String) -> Result<bool, Error> {
+        db.get_session(session)
+            .await
+            .map(|s| s.token)?
+            .and_then(|t| {
+                t.expiration.map(|e| {
+                    let now = std::time::SystemTime::now();
+                    Ok(now
+                        .duration_since(t.creation_date)
+                        .map_err(Error::default)?
+                        .cmp(&e)
+                        .is_lt())
+                })
+            })
+            .unwrap_or_else(|| Ok(false))
     }
-}
 
-pub struct AuthMiddleWare<S> {
-    auth: AuthHandler,
-    service: S,
-}
+    pub async fn middleware(
+        req: ServiceRequest,
+        next: Next<impl MessageBody + 'static>,
+    ) -> Result<ServiceResponse<impl MessageBody>, AError> {
+        // get session cookie
+        let session_cookie = req.cookie("ir_session");
+        if session_cookie.is_none() {
+            let resp = HttpResponse::Found()
+                .append_header((
+                    "location",
+                    format!("/api/v1/auth/login?referrer={}", req.path()),
+                ))
+                .finish()
+                .map_into_boxed_body();
+            let (request, _) = req.into_parts();
+            return Ok(ServiceResponse::new(request, resp));
+        };
 
-impl<S, B> Service<ServiceRequest> for AuthMiddleWare<S>
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+        let session_str = session_cookie.unwrap().value().to_string();
 
-    actix_web::dev::forward_ready!(service);
+        // get db
+        let db = req
+            .app_data::<actix_web::web::Data<Database>>()
+            .ok_or_else(|| Error::default("Unable to get Database"))?;
 
-    // Should check if the user is logged in here or not. Otherwise, redirect to mocrosoft for login
-    fn call(&self, req: ServiceRequest) -> Self::Future {
-        let fut = self.service.call(req);
-        Box::pin(async move { fut.await })
+        // Get AuthHandler
+        let auth_handler = req
+            .app_data::<actix_web::web::Data<AuthHandler>>()
+            .ok_or_else(|| Error::default("Unable to get AuthHandler"))?;
+
+        // authenticate user
+        if auth_handler.is_logged_in(db, session_str).await? {
+            next.call(req)
+                .await
+                .map(ServiceResponse::map_into_boxed_body)
+        } else {
+            let resp = HttpResponse::Found()
+                .append_header(("location", "/api/v1/auth/login"))
+                .finish()
+                .map_into_boxed_body();
+            let (request, _) = req.into_parts();
+            return Ok(ServiceResponse::new(request, resp));
+        }
     }
 }
 

@@ -1,5 +1,7 @@
+use crate::core::auth::AuthHandler;
 use actix_web::web::{scope, Data, Json, Query, ServiceConfig};
 use actix_web::{delete, get, http::StatusCode, post, services, Result};
+use actix_web_lab::middleware::from_fn;
 use serde::Deserialize;
 
 #[mockall_double::double]
@@ -14,7 +16,11 @@ struct Pagination {
 }
 
 pub fn topics_service(cfg: &mut ServiceConfig) {
-    cfg.service(scope("/topics").service(services![get_topics, add_topic, delete_topic]));
+    cfg.service(
+        scope("/topics")
+            .service(services![get_topics, add_topic, delete_topic])
+            .wrap(from_fn(AuthHandler::middleware)),
+    );
 }
 
 #[get("/")]
