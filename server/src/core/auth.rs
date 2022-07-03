@@ -1,38 +1,22 @@
 #[mockall_double::double]
 use super::db::Database;
+use crate::models::auth::*;
 use crate::models::generic::Error;
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::error::Error as AError;
 use actix_web::HttpResponse;
 use actix_web_lab::middleware::Next;
-use aragog::Record;
 use oauth2::reqwest::async_http_client;
 use oauth2::{
     basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
     PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use rand::{distributions::Alphanumeric, Rng};
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct AuthHandler {
     client: BasicClient,
-}
-
-#[derive(Serialize, Deserialize, Clone, Record, Debug, PartialEq)]
-pub struct SessionRecord {
-    pub verifier: String,
-    pub token: Option<Token>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Token {
-    pub token_type: String,
-    pub token: String,
-    pub creation_date: std::time::SystemTime,
-    pub expiration: Option<core::time::Duration>,
-    pub refresh_token: Option<String>,
 }
 
 impl AuthHandler {
@@ -146,7 +130,43 @@ impl AuthHandler {
             .unwrap_or(Ok(false))
     }
 
-    pub async fn middleware(
+    pub async fn auth_middleware(
+        req: ServiceRequest,
+        next: Next<impl MessageBody + 'static>,
+    ) -> Result<ServiceResponse<impl MessageBody>, AError> {
+        // get session cookie
+        let session_cookie = req.cookie("ir_session");
+        if session_cookie.is_none() {
+            let resp = HttpResponse::Unauthorized().finish().map_into_boxed_body();
+            let (request, _) = req.into_parts();
+            return Ok(ServiceResponse::new(request, resp));
+        };
+
+        let session_str = session_cookie.unwrap().value().to_string();
+
+        // get db
+        let db = req
+            .app_data::<actix_web::web::Data<Database>>()
+            .ok_or_else(|| Error::default("Unable to get Database"))?;
+
+        // Get AuthHandler
+        let auth_handler = req
+            .app_data::<actix_web::web::Data<AuthHandler>>()
+            .ok_or_else(|| Error::default("Unable to get AuthHandler"))?;
+
+        // authenticate user
+        if auth_handler.is_logged_in(db, session_str).await? {
+            next.call(req)
+                .await
+                .map(ServiceResponse::map_into_boxed_body)
+        } else {
+            let resp = HttpResponse::Unauthorized().finish().map_into_boxed_body();
+            let (request, _) = req.into_parts();
+            Ok(ServiceResponse::new(request, resp))
+        }
+    }
+
+    pub async fn authorize_middleware(
         req: ServiceRequest,
         next: Next<impl MessageBody + 'static>,
     ) -> Result<ServiceResponse<impl MessageBody>, AError> {
@@ -175,20 +195,18 @@ impl AuthHandler {
         let auth_handler = req
             .app_data::<actix_web::web::Data<AuthHandler>>()
             .ok_or_else(|| Error::default("Unable to get AuthHandler"))?;
+        let session = db.get_session(session_str).await?;
+        next.call(req)
+            .await
+            .map(ServiceResponse::map_into_boxed_body)
+    }
 
-        // authenticate user
-        if auth_handler.is_logged_in(db, session_str).await? {
-            next.call(req)
-                .await
-                .map(ServiceResponse::map_into_boxed_body)
-        } else {
-            let resp = HttpResponse::Found()
-                .append_header(("location", "/api/v1/auth/login"))
-                .finish()
-                .map_into_boxed_body();
-            let (request, _) = req.into_parts();
-            Ok(ServiceResponse::new(request, resp))
-        }
+    pub async fn get_user(&self, db: &Database, session: String) -> Result<User, Error> {
+        let token = db.get_session(session).await?.token.ok_or(Error::new(
+            "User is not logged in",
+            actix_web::http::StatusCode::UNAUTHORIZED,
+        ));
+        todo!()
     }
 }
 

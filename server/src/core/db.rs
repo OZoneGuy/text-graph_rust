@@ -2,7 +2,7 @@ use aragog::query::{Query, QueryResult};
 use aragog::transaction::Transaction;
 use aragog::{DatabaseConnection, DatabaseRecord, Record};
 
-use super::auth::{SessionRecord, Token};
+use crate::models::auth::*;
 use crate::models::generic::Error;
 use crate::models::refs::*;
 use crate::models::topics::Topic;

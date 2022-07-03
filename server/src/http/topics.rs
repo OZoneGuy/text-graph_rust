@@ -19,7 +19,7 @@ pub fn topics_service(cfg: &mut ServiceConfig) {
     cfg.service(
         scope("/topics")
             .service(services![get_topics, add_topic, delete_topic])
-            .wrap(from_fn(AuthHandler::middleware)),
+            .wrap(from_fn(AuthHandler::auth_middleware)),
     );
 }
 
