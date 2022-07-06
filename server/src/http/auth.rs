@@ -1,6 +1,6 @@
 use actix_identity::Identity;
 use actix_web::web::{scope, Data, Form, Json, Query, ServiceConfig};
-use actix_web::{get, post, services, HttpRequest, HttpResponse};
+use actix_web::{get, post, services, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::core::auth::AuthHandler;
@@ -28,7 +28,7 @@ async fn login(
         .0
         .referrer
         .unwrap_or_else(|| "/api/v1/".to_string());
-    let (url, session) = auth.login(db.get_ref(), &r).await?;
+    let url = auth.login(db.get_ref(), &r).await?;
 
     // Redirect to login
     Ok(HttpResponse::Found()
@@ -73,10 +73,9 @@ async fn user(
     db: Data<Database>,
     id: Identity,
 ) -> Result<Json<User>, Error> {
-    let session: String = id.identity().ok_or(Error::new(
-        "Not logged in!",
-        actix_web::http::StatusCode::UNAUTHORIZED,
-    ))?;
+    let session: String = id
+        .identity()
+        .ok_or_else(|| Error::new("Not logged in!", actix_web::http::StatusCode::UNAUTHORIZED))?;
     auth.get_ref()
         .get_user(db.get_ref(), session)
         .await

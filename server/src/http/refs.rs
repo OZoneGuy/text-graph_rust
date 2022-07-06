@@ -46,6 +46,7 @@ mod test {
         App,
     };
     use aragog::error::Error as AError;
+    use serde_json::to_string;
 
     #[test]
     async fn test_get_refs() {
@@ -114,7 +115,7 @@ mod test {
 
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let b = read_body(resp).await;
-        assert_eq!(b, format!("{}", e().unwrap_err()));
+        assert_eq!(b, to_string(&e().err()).unwrap());
     }
 
     #[test]
@@ -168,6 +169,6 @@ mod test {
 
         assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let b = read_body(resp).await;
-        assert_eq!(b, format!("{}", e().unwrap_err()));
+        assert_eq!(b, to_string(&e().err()).unwrap());
     }
 }

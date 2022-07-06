@@ -2,8 +2,8 @@
 
 set -e
 
-echo "running audit..."
-cargo audit
+# echo "running audit..."
+# cargo audit
 
 echo "running 'rustfmt'..."
 cargo fmt

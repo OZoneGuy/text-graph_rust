@@ -1,21 +1,23 @@
 #[mockall_double::double]
 use super::db::Database;
-use crate::models::auth::*;
-use crate::models::generic::Error;
+use crate::models::{auth::*, generic::Error};
 use actix_identity::RequestIdentity;
-use actix_web::body::MessageBody;
-use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::error::Error as AError;
-use actix_web::HttpResponse;
+use actix_web::{
+    body::MessageBody,
+    dev::{ServiceRequest, ServiceResponse},
+    error::Error as AError,
+    HttpResponse,
+};
 use actix_web_lab::middleware::Next;
 use chrono::prelude::*;
-use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{decode, decode_header, DecodingKey, Validation};
 use rand::{distributions::Alphanumeric, Rng};
 use ureq::get;
 use url::Url;
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct AuthHandler {
+    #[allow(dead_code)]
     client_secret: String,
     client_id: String,
     host: String,
@@ -30,7 +32,7 @@ impl AuthHandler {
         }
     }
 
-    pub async fn login(&self, db: &Database, referrer: &str) -> Result<(url::Url, String), Error> {
+    pub async fn login(&self, db: &Database, referrer: &str) -> Result<url::Url, Error> {
         // Create random state
         // To be saved in the browser
         let session: String = rand::thread_rng()
@@ -74,7 +76,7 @@ impl AuthHandler {
         .map_err(Error::default)?;
 
         // Return url and state
-        Ok((u, session))
+        Ok(u)
     }
 
     pub async fn validate_token(&self, db: &Database, jwt: &str, state: &str) -> Result<(), Error> {
@@ -96,7 +98,7 @@ impl AuthHandler {
             .keys
             .iter()
             .find(|k| k.common.key_id == Some(kid.clone()))
-            .ok_or(Error::default("JWKS is empty"))?
+            .ok_or_else(|| Error::default("JWKS is empty"))?
             .clone();
         let decode_key: DecodingKey = match key.algorithm {
             jsonwebtoken::jwk::AlgorithmParameters::RSA(p) => {
@@ -176,6 +178,7 @@ impl AuthHandler {
         }
     }
 
+    #[allow(dead_code, unused_variables)]
     pub async fn authorize_middleware(
         req: ServiceRequest,
         next: Next<impl MessageBody + 'static>,
@@ -245,6 +248,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     #[should_panic]
     fn test_new_bad_host() {
         let _auth = AuthHandler::new(
@@ -265,7 +269,7 @@ mod test {
         );
         let url_result = auth.login(&db, "base").await;
         assert!(url_result.is_ok(), "Created auth url successfully");
-        let (url, _) = url_result.unwrap();
+        let url = url_result.unwrap();
         assert_eq!(
             url.path(),
             "/common/oauth2/v2.0/authorize",
