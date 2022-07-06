@@ -1,15 +1,16 @@
-use actix_web::cookie::Cookie;
-use actix_web::web::{scope, Data, Query, ServiceConfig};
-use actix_web::{get, services, HttpRequest, HttpResponse};
+use actix_identity::Identity;
+use actix_web::web::{scope, Data, Form, Json, Query, ServiceConfig};
+use actix_web::{get, post, services, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::core::auth::AuthHandler;
 #[mockall_double::double]
 use crate::core::db::Database;
+use crate::models::auth::User;
 use crate::models::generic::*;
 
 pub fn auth_service(cfg: &mut ServiceConfig) {
-    cfg.service(scope("/auth").service(services![login, authorize]));
+    cfg.service(scope("/auth").service(services![login, authorize, user]));
 }
 
 #[derive(Deserialize)]
@@ -22,7 +23,6 @@ async fn login(
     auth: Data<AuthHandler>,
     db: Data<Database>,
     referrer: Query<Referrer>,
-    req: HttpRequest,
 ) -> Result<HttpResponse, Error> {
     let r = referrer
         .0
@@ -30,37 +30,24 @@ async fn login(
         .unwrap_or_else(|| "/api/v1/".to_string());
     let (url, session) = auth.login(db.get_ref(), &r).await?;
 
-    let host = req
-        .headers()
-        .get(actix_web::http::header::ORIGIN)
-        .map(|hv| hv.to_str())
-        .transpose()
-        .map_err(Error::default)?;
-
-    // Save session to cookie
-    let session_cookie = Cookie::build("ir_session", session)
-        .domain(host.unwrap_or("localhost"))
-        .path("/api/v1/")
-        .secure(true)
-        .finish();
     // Redirect to login
     Ok(HttpResponse::Found()
         .append_header(("location", url.as_str()))
-        .cookie(session_cookie)
         .finish())
 }
 
 #[derive(Serialize, Deserialize)]
 struct AuthResponse {
-    code: String,
+    id_token: String,
     state: String,
 }
 
-#[get("/authorize")]
+#[post("/authorize")]
 async fn authorize(
-    q: Query<AuthResponse>,
+    q: Form<AuthResponse>,
     auth: Data<AuthHandler>,
     db: Data<Database>,
+    id: Identity,
 ) -> Result<HttpResponse, Error> {
     let state_split: Vec<&str> = q.state.split('&').collect(); // First is the ID and the second element is the referrer
     let state = state_split
@@ -72,9 +59,26 @@ async fn authorize(
         .unwrap_or(&"/api/v1/")
         .trim_start_matches("Referrer=");
     auth.get_ref()
-        .get_token(db.get_ref(), &q.code, state)
+        .validate_token(db.get_ref(), &q.id_token, state)
         .await?;
+    id.remember(state.to_string());
     Ok(HttpResponse::Found()
         .append_header(("location", referrer))
         .finish())
+}
+
+#[get("/user")]
+async fn user(
+    auth: Data<AuthHandler>,
+    db: Data<Database>,
+    id: Identity,
+) -> Result<Json<User>, Error> {
+    let session: String = id.identity().ok_or(Error::new(
+        "Not logged in!",
+        actix_web::http::StatusCode::UNAUTHORIZED,
+    ))?;
+    auth.get_ref()
+        .get_user(db.get_ref(), session)
+        .await
+        .map(Json)
 }

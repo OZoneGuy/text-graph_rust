@@ -1,28 +1,26 @@
-use super::generic::Error;
-use crate::Result as CResult;
-use actix_web::{body::BoxBody, HttpRequest, HttpResponse, Responder};
 use aragog::Record;
+use chrono::{prelude::*, serde::ts_seconds};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Record)]
 pub struct User {
-    first_name: String,
-    last_name: String,
-    email: String,
+    pub name: String,
+    pub email: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Record, Debug, PartialEq)]
 pub struct SessionRecord {
-    pub verifier: String,
+    pub nonce: String,
+    #[serde(flatten)]
     pub token: Option<Token>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Token {
-    pub token_type: String,
-    pub token: String,
-    pub creation_date: std::time::SystemTime,
-    pub expiration: Option<core::time::Duration>,
-    pub refresh_token: Option<String>,
+    pub token: Option<String>,
+    pub name: String,
+    pub preferred_username: String,
+    #[serde(with = "ts_seconds")]
+    pub exp: DateTime<Utc>,
 }

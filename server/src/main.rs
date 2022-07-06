@@ -5,7 +5,9 @@ mod models;
 
 use crate::core::auth::AuthHandler;
 use crate::core::db::{Config, Database};
-use http::{auth::auth_service, refs::refs_service, root::root_service, topics::topics_service};
+use crate::http::{
+    auth::auth_service, refs::refs_service, root::root_service, topics::topics_service,
+};
 use models::generic::Error;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
@@ -130,6 +132,10 @@ async fn main() -> std::io::Result<()> {
 
     println!("Running the server...");
     HttpServer::new(move || {
+        let policy = actix_identity::CookieIdentityPolicy::new(&[0; 32])
+            .name("ir_session")
+            .secure(true);
+
         App::new()
             .wrap(Logger::default())
             .data_factory(db_fact.clone())
@@ -138,6 +144,7 @@ async fn main() -> std::io::Result<()> {
                 client_secret.clone(),
                 client_id.clone(),
             )))
+            .wrap(actix_identity::IdentityService::new(policy))
             .service(
                 web::scope("/api/v1")
                     .configure(topics_service)

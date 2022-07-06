@@ -2,132 +2,142 @@
 use super::db::Database;
 use crate::models::auth::*;
 use crate::models::generic::Error;
+use actix_identity::RequestIdentity;
 use actix_web::body::MessageBody;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::error::Error as AError;
 use actix_web::HttpResponse;
 use actix_web_lab::middleware::Next;
-use oauth2::reqwest::async_http_client;
-use oauth2::{
-    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
-};
+use chrono::prelude::*;
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use rand::{distributions::Alphanumeric, Rng};
+use ureq::get;
+use url::Url;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AuthHandler {
-    client: BasicClient,
+    client_secret: String,
+    client_id: String,
+    host: String,
 }
 
 impl AuthHandler {
     pub fn new(host: String, client_secret: String, client_id: String) -> Self {
-        let base_url: String = "https://login.microsoftonline.com/common/oauth2/v2.0".to_string();
-        let auth_url =
-            AuthUrl::new(format!("{}/authorize", base_url)).expect("Failed to create AuthUrl");
-        let token_url =
-            TokenUrl::new(format!("{}/token", base_url)).expect("Failed to create TokenUrl");
-        let client = BasicClient::new(
-            ClientId::new(client_id),
-            Some(ClientSecret::new(client_secret)),
-            auth_url,
-            Some(token_url),
-        )
-        .set_redirect_uri(
-            RedirectUrl::new(format!("{}/api/v1/auth/authorize", host))
-                .expect("Failed to create redirect url"),
-        );
-        AuthHandler { client }
+        AuthHandler {
+            client_secret,
+            client_id,
+            host,
+        }
     }
 
-    pub async fn login(
-        &self,
-        db: &Database,
-        referrer: &str,
-    ) -> Result<(oauth2::url::Url, String), Error> {
+    pub async fn login(&self, db: &Database, referrer: &str) -> Result<(url::Url, String), Error> {
         // Create random state
         // To be saved in the browser
-        let rand_state: String = rand::thread_rng()
+        let session: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
             .map(char::from)
             .collect();
-        // get a verifier for the code token
-        let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+
+        // create nonce
+        let nonce: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect();
 
         // Save session in the database
         db.add_session(
-            rand_state.clone(),
+            session.clone(),
             SessionRecord {
                 token: None,
-                verifier: pkce_verifier.secret().clone(),
+                nonce: nonce.clone(),
             },
         )
         .await?;
-
         // Create URL to get auth code
-        let (u, _csrf_token) = self
-            .client
-            .authorize_url(|| {
-                CsrfToken::new(format!(
-                    "State={}&Referrer={}",
-                    rand_state.clone(),
-                    referrer
-                ))
-            })
-            .add_scope(Scope::new("openid".to_string()))
-            .add_scope(Scope::new("profile".to_string()))
-            .set_pkce_challenge(pkce_challenge)
-            .url();
+        let u = Url::parse_with_params(
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            &[
+                ("client_id", self.client_id.as_str()),
+                ("response_type", "id_token"),
+                (
+                    "redirect_uri",
+                    &format!("{}/api/v1/auth/authorize", self.host),
+                ),
+                ("response_mode", "form_post"),
+                ("scope", "openid profile email"),
+                ("state", &format!("State={}&Referrer={}", session, referrer)),
+                ("nonce", &nonce),
+            ],
+        )
+        .map_err(Error::default)?;
 
         // Return url and state
-        Ok((u, rand_state))
+        Ok((u, session))
     }
 
-    pub async fn get_token(&self, db: &Database, code: &str, state: &str) -> Result<(), Error> {
+    pub async fn validate_token(&self, db: &Database, jwt: &str, state: &str) -> Result<(), Error> {
         // 1. Retreive the pkce verifier, using the state
         let s = db.get_session(state.to_string()).await?;
 
-        // 2. Get the token result
-        let token_result = self
-            .client
-            .exchange_code(AuthorizationCode::new(code.to_string()))
-            .set_pkce_verifier(PkceCodeVerifier::new(s.verifier.clone()))
-            .request_async(async_http_client)
-            .await
-            .map_err(Error::default)?;
+        // 2 decode jwt
+        // 2.a get the kId from the header
+        let jwt_header = decode_header(jwt).map_err(Error::default)?;
+        let kid = jwt_header.kid.expect("jwt header should have a kid");
+
+        // 2.b retrieve the key from the ms endpoint using the kId
+        let key = get("https://login.microsoftonline.com/common/discovery/v2.0/keys")
+            .set("kid", &kid)
+            .call()
+            .map_err(Error::default)?
+            .into_json::<jsonwebtoken::jwk::JwkSet>()
+            .map_err(Error::default)?
+            .keys
+            .iter()
+            .find(|k| k.common.key_id == Some(kid.clone()))
+            .ok_or(Error::default("JWKS is empty"))?
+            .clone();
+        let decode_key: DecodingKey = match key.algorithm {
+            jsonwebtoken::jwk::AlgorithmParameters::RSA(p) => {
+                Ok(DecodingKey::from_rsa_components(&p.n, &p.e).map_err(Error::default)?)
+            }
+            _ => Err(Error::default("Unsupported alogirthm")),
+        }?;
+
+        // 2.c actually decode the jwt...
+        let validator = Validation::new(jwt_header.alg);
+        let jwt_decoded =
+            decode::<SessionRecord>(jwt, &decode_key, &validator).map_err(Error::default)?;
+
+        // 2.d Validate the jwt using the nonce
+        if jwt_decoded.claims.nonce != s.nonce {
+            return Err(Error::default("Failed to validate jwt nonce"));
+        };
+
+        let mut session_record = jwt_decoded.claims;
+        session_record
+            .token
+            .as_mut()
+            .expect("Failed to parse token")
+            .token = Some(jwt.to_string());
 
         // 3. Return the Access token. To be saved in the session
         // 3a. Save the token information in the database?
-        let token: Token = Token {
-            token_type: token_result.token_type().as_ref().to_string(),
-            token: token_result.access_token().secret().to_string(),
-            expiration: token_result.expires_in(),
-            creation_date: std::time::SystemTime::now(),
-            refresh_token: token_result
-                .refresh_token()
-                .map(|r| oauth2::RefreshToken::secret(r).clone()),
-        };
-        db.update_session(state.to_string(), token)
-            .await
-            .map_err(Error::default)
-            .map(|_| ())
+        db.update_session(
+            state.to_string(),
+            session_record.token.expect("Failed to parse token"),
+        )
+        .await
+        .map_err(Error::default)
+        .map(|_| ())
     }
 
     pub async fn is_logged_in(&self, db: &Database, session: String) -> Result<bool, Error> {
-        db.get_session(session)
-            .await
-            .map(|s| s.token)?
-            .and_then(|t| {
-                t.expiration.map(|e| {
-                    let now = std::time::SystemTime::now();
-                    Ok(now
-                        .duration_since(t.creation_date)
-                        .map_err(Error::default)?
-                        .cmp(&e)
-                        .is_lt())
-                })
-            })
-            .unwrap_or(Ok(false))
+        db.get_session(session).await?.token.map_or(Ok(false), |t| {
+            log::debug!("{:?}", t.exp);
+            Ok(t.exp.cmp(&Utc::now()).is_gt())
+        })
     }
 
     pub async fn auth_middleware(
@@ -135,14 +145,14 @@ impl AuthHandler {
         next: Next<impl MessageBody + 'static>,
     ) -> Result<ServiceResponse<impl MessageBody>, AError> {
         // get session cookie
-        let session_cookie = req.cookie("ir_session");
+        let session_cookie = req.get_identity();
         if session_cookie.is_none() {
             let resp = HttpResponse::Unauthorized().finish().map_into_boxed_body();
             let (request, _) = req.into_parts();
             return Ok(ServiceResponse::new(request, resp));
         };
 
-        let session_str = session_cookie.unwrap().value().to_string();
+        let session_str = session_cookie.unwrap();
 
         // get db
         let db = req
@@ -202,11 +212,21 @@ impl AuthHandler {
     }
 
     pub async fn get_user(&self, db: &Database, session: String) -> Result<User, Error> {
-        let token = db.get_session(session).await?.token.ok_or(Error::new(
-            "User is not logged in",
-            actix_web::http::StatusCode::UNAUTHORIZED,
-        ));
-        todo!()
+        if !self.is_logged_in(db, session.clone()).await? {
+            return Err(Error::new(
+                "User is not logged in",
+                actix_web::http::StatusCode::UNAUTHORIZED,
+            ));
+        };
+        let t = db
+            .get_session(session)
+            .await?
+            .token
+            .expect("Token is not present");
+        Ok(User {
+            name: t.name,
+            email: t.preferred_username,
+        })
     }
 }
 
