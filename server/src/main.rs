@@ -11,58 +11,40 @@ use crate::http::{
 use models::generic::Error;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
-use clap::{crate_authors, crate_name, crate_version, Arg, Command};
+use clap::Parser;
 
 #[cfg(debug_assertions)]
 use dotenv::{dotenv, from_filename};
 
 type Result<T> = std::result::Result<T, Error>;
 
-fn app<'help>() -> Command<'help> {
-    Command::new(crate_name!())
-        .author(crate_authors!())
-        .version(crate_version!())
-        .arg(Arg::new("dev")
-             .short('d')
-             .long("dev")
-             .help("Enable dev mode.")
-             .long_help("Enable more logging, sends more verbose errors to the client, and uses local database."))
-        .arg(Arg::new("db_username")
-             .short('u')
-             .help("The username for the Graph database. Defaults to neo4j")
-             .env("DB_USERNAME")
-             .takes_value(true)
-             .default_value("user"))
-        .arg(Arg::new("db_pass")
-             .short('p')
-             .help("The password for the Graph database.")
-             .env("DB_PASSWORD")
-             .takes_value(true)
-             .required(true))
-        .arg(Arg::new("db_host")
-             .short('H')
-             .help("The host for the Graph database.")
-             .env("DB_HOST")
-             .takes_value(true)
-             .default_value("localhost"))
-        .arg(Arg::new("db_name")
-             .short('N')
-             .help("The name of the database")
-             .env("DB_NAME")
-             .default_value("DB"))
-        .arg(Arg::new("schema")
-             .short('S')
-             .help("The path of the schema")
-             .env("SCHEMA_PATH")
-             .takes_value(true))
-        .arg(Arg::new("client_secret")
-             .help("The client secret. Retrieved from Azure AD")
-             .env("AD_SECRET")
-             .takes_value(true))
-        .arg(Arg::new("client_id")
-             .help("The client ID. Retrieved from Azure AD")
-             .env("AD_SECRET_ID")
-             .takes_value(true))
+#[derive(Parser, Debug)]
+#[clap(author, version)]
+struct Args {
+    /// Enable debugging
+    #[clap(long, short, action = clap::ArgAction::SetTrue)]
+    dev: bool,
+    /// The database username
+    #[clap(long, value_parser, env = "DB_USERNAME")]
+    db_username: String,
+    /// The database password
+    #[clap(long, value_parser, env = "DB_PASSWORD")]
+    db_pass: String,
+    /// The database name
+    #[clap(long, value_parser, env = "DB_NAME")]
+    db_name: String,
+    /// The hostname to the database
+    #[clap(long, value_parser, env = "DB_HOST")]
+    db_host: String,
+    /// Path to the schema.
+    #[clap(short, long, value_parser, env = "SCHEMA_PATH")]
+    schema_path: String,
+    /// Azure AD Client Secret
+    #[clap(long, value_parser, env = "CLIENT_SECRET")]
+    client_secret: String,
+    /// Azure AD Client ID
+    #[clap(long, value_parser, env = "CLIENT_ID")]
+    client_id: String,
 }
 
 #[actix_web::main]
@@ -73,35 +55,18 @@ async fn main() -> std::io::Result<()> {
         from_filename(".secrets.env").ok();
     }
 
-    let args = app().get_matches();
+    let args = Args::parse();
 
-    if args.is_present("dev") {
-        env_logger::Builder::new()
-            .filter_level(log::LevelFilter::Debug)
-            .init();
-    };
+    if args.dev {
+        env_logger::Builder::new().filter_level(log::LevelFilter::Debug);
+    }
 
     let db_cfg = Config {
-        username: args
-            .value_of("db_username")
-            .expect("Empty username value.")
-            .to_string(),
-        pass: args
-            .value_of("db_pass")
-            .expect("Empty password value")
-            .to_string(),
-        address: args
-            .value_of("db_host")
-            .expect("Empty host value")
-            .to_string(),
-        db_name: args
-            .value_of("db_name")
-            .expect("Empty database value.")
-            .to_string(),
-        schema_path: format!(
-            "{}/schema.yaml",
-            args.value_of("schema").expect("Empty schema path.")
-        ),
+        username: args.db_username,
+        pass: args.db_pass,
+        address: args.db_host,
+        db_name: args.db_name,
+        schema_path: format!("{}/schema.yaml", args.schema_path),
     };
 
     Database::migrate().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -114,21 +79,8 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let client_secret: String = args
-        .value_of("client_secret")
-        .expect("client_secret is not set")
-        .to_string();
-    let client_id: String = args
-        .value_of("client_id")
-        .expect("Client ID is not set")
-        .to_string();
-
-    // let auth_fact = move || {
-    //     let localhost = "localhost".to_string();
-    //     let cs = client_secret.clone();
-    //     let cid = client_id.clone();
-    //     async move { AuthHandler::new(localhost, cs, cid) }
-    // };
+    let client_secret: String = args.client_secret;
+    let client_id: String = args.client_id;
 
     println!("Running the server...");
     HttpServer::new(move || {
