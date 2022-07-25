@@ -1,7 +1,12 @@
 #!/bin/bash
 
+set -e
+
+# echo "running audit..."
+# cargo audit
+
 echo "running 'rustfmt'..."
-cargo fmt -- --check
+cargo fmt
 
 echo "running 'clippy'..."
 cargo clippy

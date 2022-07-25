@@ -1,0 +1,36 @@
+# 
+# This schema file is auto generated and synchronized with the database.
+# Editing it will have no effect.
+# 
+---
+version: 4
+collections:
+  - name: Topic
+    is_edge_collection: false
+  - name: QRef
+    is_edge_collection: false
+  - name: HRef
+    is_edge_collection: false
+  - name: RefEdge
+    is_edge_collection: true
+  - name: SessionRecord
+    is_edge_collection: false
+indexes:
+  - name: TopicIndex
+    collection: TopicCollection
+    fields:
+      - name
+    settings:
+      type: persistent
+      unique: true
+      sparse: true
+      deduplicate: true
+graphs:
+  - name: Topics
+    edgeDefinitions:
+      - collection: RefEdgeCollection
+        from:
+          - TopicCollection
+        to:
+          - QRefCollection
+          - HRefCollection

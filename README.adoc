@@ -1,0 +1,33 @@
+= Islamic Rerference
+:toc:
+
+== Description
+
+This project aims to provide an application that links topics to references in the Quran and Hadith. It, _aims_, to use APIs provided by other services to link to the texts, (WIP).
+
+It uses an internal Graph database to link the topics to the text.
+
+== Technology Stack
+
+=== Backend:
+ * Server: Rust
+ * Database: ArangoDB
+
+=== Frontend:
+ * *TBD*
+
+== Local Development
+
+NOTE: Should probably replace with a script. There is already a service in the compose to run the server. Should try to use it.
+
+1. Copy and update `.secrets.env.rename`
+  * Copy it to `.secrets.env` and populate the missing fields
+2. Source `.env` and `.secrets.env`.
+NOTE: Probably want to write a script to automatically source the files.
+3. Run the database
+  * From `db/docker` run `docker compose up arango [-d]`.
+    * Add the `-d` option to run in the background.
+4. Run the application:
+  * From inside the `server` directory run `cargo run [-- -d]`.
+  * The `-- -d` is to add the `dev` flag. Does nothing currently. Should enable better logs.
+  NOTE: This is seperate from the dev profile.

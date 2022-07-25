@@ -5,7 +5,7 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub struct Error {
     message: String,
     version: String,
@@ -27,12 +27,21 @@ impl Health {
 }
 
 impl Error {
-    pub fn new<E: Debug>(error: E, code: StatusCode) -> Error {
+    pub fn new<E: Debug>(e: E, code: StatusCode) -> Error {
         let version = env!("CARGO_PKG_VERSION").to_string();
         Error {
-            message: format!("{:?}", error),
+            message: format!("{:?}", e),
             version,
             code: code.as_u16(),
+        }
+    }
+
+    pub fn default<E: Debug>(e: E) -> Self {
+        let version = env!("CARGO_PKG_VERSION").to_string();
+        Error {
+            message: format!("{:?}", e),
+            version,
+            code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
         }
     }
 }
@@ -62,4 +71,10 @@ impl ResponseError for Error {
     fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.code).expect("Should have a valid status code")
     }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        HttpResponse::build(self.status_code()).json(self)
+    }
 }
+
+impl std::error::Error for Error {}

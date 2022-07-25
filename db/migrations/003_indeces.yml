@@ -1,0 +1,14 @@
+up:
+  - create_index:
+      name: TopicIndex
+      fields: ["name"]
+      collection: TopicCollection
+      settings:
+        type:  persistent
+        unique: true
+        sparse: true
+        deduplicate: true
+down:
+  - delete_index:
+      name: TopicIndex
+      collection: TopicCollection
