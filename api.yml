@@ -1,7 +1,9 @@
 openapi: 3.0.0
+
 info:
   title: text-graph_rust
   version: 0.1.0
+
 servers:
   - url: '{schema}://{host}:{port}/{basePath}'
     variables:
@@ -15,28 +17,48 @@ servers:
       host:
         default: localhost
       schema:
+        enum:
+          - https
+          - http
         default: http
+
+tags:
+  - name: auth
+    description: Requires authentication to access
+  - name: topics
+    description: Endpoints related to topics.
+  - name: ref
+    description: Endpoints related to references.
+  - name: login
+    description: Login related endpoints
+
 paths:
-  /healthz:
-    get:
-      operationId: health
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Health'
+  ## Root endpoints
   /:
     get:
       operationId: root
       responses:
         '200':
-          description: ''
+          description: 'Root page, returns a string.'
           content:
             text/plain:
               schema:
                 type: string
+
+  /healthz:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: 'Healthy server.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  ## Topics endpoints
   /topics:
     get:
       operationId: get_topics
@@ -55,15 +77,16 @@ paths:
             nullable: true
       responses:
         '200':
-          description: ''
+          description: 'Returns all list of topics'
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: '#/components/schemas/Error'
-                  - type: array
-                    items:
-                      type: string
+                  type: array
+                  items:
+                    type: string
+        '500':
+          $ref: '#/components/responses/Error'
+
     post:
       operationId: add_topic
       requestBody:
@@ -78,9 +101,10 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: '#/components/schemas/Error'
-                  - $ref: '#/components/schemas/Health'
+                $ref: '#/components/schemas/Generic'
+        '500':
+          $ref: '#/components/responses/Error'
+
     delete:
       operationId: delete_topic
       requestBody:
@@ -91,23 +115,21 @@ paths:
         required: true
       responses:
         '200':
-          description: ''
+          description: 'Successfully deleted topic'
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: '#/components/schemas/Error'
-                  - $ref: '#/components/schemas/Health'
-  /login:
-    get:
-      operationId: login
-      responses:
-        '200':
-          description: ''
+                $ref: '#/components/schemas/Generic'
+        '400':
+          description: 'Could not find topic'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Health'
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  ## Refs related endpoints
   /refs:
     get:
       operationId: get_references
@@ -119,21 +141,23 @@ paths:
             type: string
       responses:
         '200':
-          description: ''
+          description: 'The list of refs for the topic'
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: '#/components/schemas/Error'
-                  - type: array
-                    items:
-                      $ref: '#/components/schemas/RefEnum'
-  /refs/qref:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RefEnum'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  /refs/qref/{topic}:
     post:
+      description: 'Add a new Quranic reference to the topic'
       operationId: add_qref
       parameters:
         - name: topic
-          in: query
+          in: path
           required: true
           schema:
             type: string
@@ -145,19 +169,27 @@ paths:
         required: true
       responses:
         '200':
-          description: ''
+          description: 'Successfully add Quranic reference'
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: '#/components/schemas/Error'
-                  - $ref: '#/components/schemas/Health'
-  /refs/href:
+                $ref: '#/components/schemas/Health'
+        '400':
+          description: Topic doesn't exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  /refs/href/{topic}:
     post:
+      description: 'Add a new Hadith reference to the topic'
       operationId: add_href
       parameters:
         - name: topic
-          in: query
+          in: path
           required: true
           schema:
             type: string
@@ -169,16 +201,52 @@ paths:
         required: true
       responses:
         '200':
-          description: ''
+          description: 'Successfully add a Hadith reference'
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: '#/components/schemas/Error'
-                  - $ref: '#/components/schemas/Health'
+                $ref: '#/components/schemas/Health'
+        '400':
+          description: Topic doesn't exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+  ## Login and user related endpoints
+  /login:
+    get:
+      operationId: login
+      responses:
+        '302':
+          description: Used to login. Redirects to Azure AD, should not be used programatically.
+
+  /user:
+    get:
+      operationId: user
+      responses:
+        '200':
+          description: 'Get current user data'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: 'User is not authorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/Error'
+
+
 components:
   schemas:
-    Health:
+
+    Generic:
       type: object
       required:
         - message
@@ -188,6 +256,28 @@ components:
           type: string
         version:
           type: string
+
+    Health:
+      type: object
+      required:
+        - status
+        - version
+      properties:
+        message:
+          type: array
+          items:
+            type: object
+            required:
+              - component
+              - status
+            properties:
+              component:
+                type: string
+              status:
+                type: string
+              version:
+                type: string
+
     Error:
       type: object
       required:
@@ -198,6 +288,7 @@ components:
           type: string
         version:
           type: string
+
     NewTopic:
       type: object
       required:
@@ -208,29 +299,13 @@ components:
         id:
           type: string
           nullable: true
+
     RefEnum:
       oneOf:
-        - type: object
-          required:
-            - QRef
-          properties:
-            QRef:
-              $ref: '#/components/schemas/QRefParams'
-          additionalProperties: false
-        - type: object
-          required:
-            - HRef
-          properties:
-            HRef:
-              $ref: '#/components/schemas/HRefParams'
-          additionalProperties: false
-        - type: object
-          required:
-            - BRef
-          properties:
-            BRef:
-              $ref: '#/components/schemas/BRefParams'
-          additionalProperties: false
+        - $ref: '#/components/schemas/QRefParams'
+        - $ref: '#/components/schemas/HRefParams'
+        - $ref: '#/components/schemas/BRefParams'
+
     QRefParams:
       type: object
       required:
@@ -247,6 +322,7 @@ components:
         final_verse:
           type: integer
           format: int64
+
     HRefParams:
       type: object
       required:
@@ -257,6 +333,7 @@ components:
           type: string
         number:
           type: string
+
     BRefParams:
       type: object
       required:
@@ -271,3 +348,22 @@ components:
         page:
           type: integer
           format: int64
+
+    User:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+
+  responses:
+    Error:
+      description: 'Server Error'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
