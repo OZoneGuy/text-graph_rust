@@ -15,8 +15,16 @@ pub struct Error {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Health {
-    message: String,
+    status: Vec<HealthStatus>,
     version: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct HealthStatus {
+    component: String,
+    status: String,
+    #[serde(skip)]
+    healthy: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -26,9 +34,53 @@ pub struct Generic {
 }
 
 impl Health {
-    pub fn new(message: String) -> Health {
+    pub fn new(status: Vec<HealthStatus>) -> Health {
         let version = env!("CARGO_PKG_VERSION").to_string();
-        Health { message, version }
+        Health { status, version }
+    }
+}
+
+impl Responder for Health {
+    type Body = actix_web::body::BoxBody;
+    fn respond_to(self, _: &HttpRequest) -> HttpResponse<actix_web::body::BoxBody> {
+        HttpResponse::Ok().json(self)
+    }
+}
+
+impl ResponseError for Health {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        HttpResponse::build(self.status_code()).json(self)
+    }
+}
+
+impl core::fmt::Display for Health {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Server unhealthy: {:?}", self.status)
+    }
+}
+
+impl HealthStatus {
+    pub fn new(component: String) -> Self {
+        HealthStatus {
+            component,
+            status: "Healthy".to_string(),
+            healthy: true,
+        }
+    }
+
+    pub fn set_status(&mut self, status: String) {
+        self.status = status
+    }
+
+    pub fn set_unhealthy(&mut self) {
+        self.healthy = false
+    }
+
+    pub fn is_healthy(&self) -> bool {
+        self.healthy
     }
 }
 
@@ -66,14 +118,6 @@ impl Responder for Error {
         HttpResponseBuilder::new(code).json(self)
     }
 }
-
-impl Responder for Health {
-    type Body = actix_web::body::BoxBody;
-    fn respond_to(self, _: &HttpRequest) -> HttpResponse<actix_web::body::BoxBody> {
-        HttpResponse::Ok().json(self)
-    }
-}
-
 impl Responder for Generic {
     type Body = actix_web::body::BoxBody;
     fn respond_to(self, _: &HttpRequest) -> HttpResponse<actix_web::body::BoxBody> {

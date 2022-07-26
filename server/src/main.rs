@@ -74,7 +74,7 @@ async fn main() -> std::io::Result<()> {
     let db_fact = move || {
         let cfg = db_cfg.clone();
         async move {
-            let db = Database::new(cfg.clone()).await;
+            let db = Database::new(cfg).await;
             Ok::<Database, ()>(db)
         }
     };
