@@ -3,7 +3,7 @@ use actix_web::{get, post, services, Result};
 
 #[mockall_double::double]
 use crate::core::db::Database;
-use crate::models::generic::*;
+use crate::models::generic::Generic;
 use crate::models::refs::{HRef, QRef, RefEnum};
 
 pub fn refs_service(cfg: &mut ServiceConfig) {
@@ -19,25 +19,26 @@ async fn get_references(topic: Path<String>, db: Data<Database>) -> Result<Json<
 }
 
 #[post("/{topic}/qref")]
-async fn add_qref(topic: Path<String>, qref: Json<QRef>, db: Data<Database>) -> Result<Health> {
+async fn add_qref(topic: Path<String>, qref: Json<QRef>, db: Data<Database>) -> Result<Generic> {
     qref.validate()?;
     db.add_qref_to_topic(topic.as_str(), qref.0)
         .await
-        .map(|_| Health::new("Created Quran reference successfully".to_string()))
+        .map(|_| Generic::new("Created Quran reference successfully".to_string()))
         .map_err(Into::into)
 }
 
 #[post("/{topic}/href")]
-async fn add_href(topic: Path<String>, href: Json<HRef>, db: Data<Database>) -> Result<Health> {
+async fn add_href(topic: Path<String>, href: Json<HRef>, db: Data<Database>) -> Result<Generic> {
     db.add_href_to_topic(topic.as_str(), href.0)
         .await
-        .map(|_| Health::new("Created Hadith reference successfully".to_string()))
+        .map(|_| Generic::new("Created Hadith reference successfully".to_string()))
         .map_err(Into::into)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::models::generic::Error;
     use actix_service::Service;
     use actix_web::{
         http::StatusCode,
@@ -81,10 +82,10 @@ mod test {
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
-        let b: Health = read_body_json(resp).await;
+        let b: Generic = read_body_json(resp).await;
         assert_eq!(
             b,
-            Health::new("Created Quran reference successfully".to_string())
+            Generic::new("Created Quran reference successfully".to_string())
         )
     }
 
@@ -136,10 +137,10 @@ mod test {
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
-        let b: Health = read_body_json(resp).await;
+        let b: Generic = read_body_json(resp).await;
         assert_eq!(
             b,
-            Health::new("Created Hadith reference successfully".to_string())
+            Generic::new("Created Hadith reference successfully".to_string())
         )
     }
 

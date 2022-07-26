@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 #[mockall_double::double]
 use crate::core::db::Database;
-use crate::models::generic::*;
+use crate::models::generic::{Error, Generic};
 use crate::models::topics::Topic;
 
 #[derive(Deserialize)]
@@ -41,20 +41,20 @@ async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec
 }
 
 #[post("/")]
-async fn add_topic(topic: Json<Topic>, db: Data<Database>) -> Result<Health> {
+async fn add_topic(topic: Json<Topic>, db: Data<Database>) -> Result<Generic> {
     db.add_topic(topic.name.as_str())
         .await
-        .map(|_| Health::new(format!("Successfully created {}", topic.name)))
+        .map(|_| Generic::new(format!("Successfully created {}", topic.name)))
         .map_err(|e| Error::new(e, StatusCode::INTERNAL_SERVER_ERROR).into())
 }
 
 #[delete("/")]
-async fn delete_topic(topic: Json<Topic>, db: Data<Database>) -> Result<Health> {
+async fn delete_topic(topic: Json<Topic>, db: Data<Database>) -> Result<Generic> {
     db.delete_topic(topic.name.as_str())
         .await
         .map(|_| {
             // info!("Deleted {}", topic.name);
-            Health::new(format!("Successfully deleted {}", topic.name))
+            Generic::new(format!("Successfully deleted {}", topic.name))
         })
         .map_err(|e| {
             // error!("Failed to delete topic: {:?}", e);
@@ -131,10 +131,10 @@ mod test {
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
-        let body: Health = read_body_json(resp).await;
+        let body: Generic = read_body_json(resp).await;
         assert_eq!(
             body,
-            Health::new(format!("Successfully created {}", topic.name))
+            Generic::new(format!("Successfully created {}", topic.name))
         )
     }
 

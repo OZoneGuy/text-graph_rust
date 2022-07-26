@@ -7,7 +7,7 @@ use crate::core::auth::AuthHandler;
 #[mockall_double::double]
 use crate::core::db::Database;
 use crate::models::auth::User;
-use crate::models::generic::*;
+use crate::models::generic::Error;
 
 pub fn auth_service(cfg: &mut ServiceConfig) {
     cfg.service(scope("/auth").service(services![login, authorize, user]));

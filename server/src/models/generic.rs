@@ -19,10 +19,23 @@ pub struct Health {
     version: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct Generic {
+    message: String,
+    version: String,
+}
+
 impl Health {
     pub fn new(message: String) -> Health {
         let version = env!("CARGO_PKG_VERSION").to_string();
         Health { message, version }
+    }
+}
+
+impl Generic {
+    pub fn new(message: String) -> Generic {
+        let version = env!("CARGO_PKG_VERSION").to_string();
+        Generic { message, version }
     }
 }
 
@@ -55,6 +68,13 @@ impl Responder for Error {
 }
 
 impl Responder for Health {
+    type Body = actix_web::body::BoxBody;
+    fn respond_to(self, _: &HttpRequest) -> HttpResponse<actix_web::body::BoxBody> {
+        HttpResponse::Ok().json(self)
+    }
+}
+
+impl Responder for Generic {
     type Body = actix_web::body::BoxBody;
     fn respond_to(self, _: &HttpRequest) -> HttpResponse<actix_web::body::BoxBody> {
         HttpResponse::Ok().json(self)
