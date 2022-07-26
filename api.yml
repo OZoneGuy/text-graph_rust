@@ -56,7 +56,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
         '500':
-          $ref: '#/components/responses/Error'
+          description: 'Unhealthy server :('
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
 
   ## Topics endpoints
   /topics:
@@ -130,12 +134,12 @@ paths:
           $ref: '#/components/responses/Error'
 
   ## Refs related endpoints
-  /refs:
+  /refs/{topic}:
     get:
       operationId: get_references
       parameters:
         - name: topic
-          in: query
+          in: path
           required: true
           schema:
             type: string
@@ -216,14 +220,14 @@ paths:
           $ref: '#/components/responses/Error'
 
   ## Login and user related endpoints
-  /login:
+  /auth/login:
     get:
       operationId: login
       responses:
         '302':
           description: Used to login. Redirects to Azure AD, should not be used programatically.
 
-  /user:
+  /auth/user:
     get:
       operationId: user
       responses:
