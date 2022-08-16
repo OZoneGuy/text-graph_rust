@@ -58,7 +58,9 @@ async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     if args.dev {
-        env_logger::Builder::new().filter_level(log::LevelFilter::Debug);
+        env_logger::Builder::new()
+            .filter_level(log::LevelFilter::Debug)
+            .init();
     }
 
     let db_cfg = Config {
