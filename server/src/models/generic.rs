@@ -33,6 +33,12 @@ pub struct Generic {
     version: String,
 }
 
+#[derive(Deserialize)]
+pub struct Pagination {
+    pub page: Option<u32>,
+    pub size: Option<u32>,
+}
+
 impl Health {
     pub fn new(status: Vec<HealthStatus>) -> Health {
         let version = env!("CARGO_PKG_VERSION").to_string();

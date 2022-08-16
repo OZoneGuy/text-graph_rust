@@ -2,18 +2,11 @@ use crate::core::auth::AuthHandler;
 use actix_web::web::{scope, Data, Json, Query, ServiceConfig};
 use actix_web::{delete, get, http::StatusCode, post, services, Result};
 use actix_web_lab::middleware::from_fn;
-use serde::Deserialize;
 
 #[mockall_double::double]
 use crate::core::db::Database;
-use crate::models::generic::{Error, Generic};
+use crate::models::generic::{Error, Generic, Pagination};
 use crate::models::topics::Topic;
-
-#[derive(Deserialize)]
-struct Pagination {
-    page: Option<u32>,
-    size: Option<u32>,
-}
 
 pub fn topics_service(cfg: &mut ServiceConfig) {
     cfg.service(
