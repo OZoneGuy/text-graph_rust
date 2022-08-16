@@ -70,7 +70,6 @@ mod test {
             .returning(|_topic, _qref| Ok(()));
         let app = init_service(App::new().service(add_qref).app_data(Data::new(db))).await;
         let qref = QRef {
-            _id: None,
             chapter: 0,
             init_verse: 0,
             final_verse: 0,
@@ -103,7 +102,6 @@ mod test {
             .returning(move |_topic, _qref| e());
         let app = init_service(App::new().service(add_qref).app_data(Data::new(db))).await;
         let qref = QRef {
-            _id: None,
             chapter: 0,
             init_verse: 0,
             final_verse: 0,
@@ -126,7 +124,6 @@ mod test {
             .returning(|_topic, _href| Ok(()));
         let app = init_service(App::new().service(add_href).app_data(Data::new(db))).await;
         let href = HRef {
-            _id: None,
             collection: "".to_string(),
             number: "".to_string(),
         };
@@ -158,7 +155,6 @@ mod test {
             .returning(move |_topic, _href| e());
         let app = init_service(App::new().service(add_href).app_data(Data::new(db))).await;
         let href = HRef {
-            _id: None,
             collection: "".to_string(),
             number: "".to_string(),
         };

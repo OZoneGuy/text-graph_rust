@@ -7,8 +7,6 @@ use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Record)]
 pub struct QRef {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub _id: Option<String>,
     pub chapter: usize,
     pub init_verse: usize,
     pub final_verse: usize,
@@ -16,16 +14,12 @@ pub struct QRef {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Record)]
 pub struct HRef {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub _id: Option<String>,
     pub collection: String,
     pub number: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct BRef {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub _id: Option<String>,
     pub isbn: String,
     pub name: String,
     pub page: i64,
