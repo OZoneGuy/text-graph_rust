@@ -65,6 +65,8 @@ paths:
   ## Topics endpoints
   /topics:
     get:
+      tags:
+        - topics
       operationId: get_topics
       parameters:
         - name: page
@@ -92,6 +94,8 @@ paths:
           $ref: '#/components/responses/Error'
 
     post:
+      tags:
+        - topics
       operationId: add_topic
       requestBody:
         content:
@@ -110,6 +114,8 @@ paths:
           $ref: '#/components/responses/Error'
 
     delete:
+      tags:
+        - topics
       operationId: delete_topic
       requestBody:
         content:
@@ -136,6 +142,8 @@ paths:
   ## Refs related endpoints
   /refs/{topic}:
     get:
+      tags:
+        - ref
       operationId: get_references
       parameters:
         - name: topic
@@ -189,6 +197,8 @@ paths:
 
   /refs/href/{topic}:
     post:
+      tags:
+        - ref
       description: 'Add a new Hadith reference to the topic'
       operationId: add_href
       parameters:
@@ -222,6 +232,8 @@ paths:
   ## Login and user related endpoints
   /auth/login:
     get:
+      tags:
+        - auth
       operationId: login
       responses:
         '302':
@@ -229,6 +241,8 @@ paths:
 
   /auth/user:
     get:
+      tags:
+        - auth
       operationId: user
       responses:
         '200':
