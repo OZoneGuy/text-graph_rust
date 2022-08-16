@@ -1,13 +1,13 @@
-use actix_web::web::{scope, Data, Json, Path, ServiceConfig};
+use actix_web::web::{scope, Data, Json, Path, Query, ServiceConfig};
 use actix_web::{get, post, services, Result};
 
 #[mockall_double::double]
 use crate::core::db::Database;
-use crate::models::generic::Generic;
+use crate::models::generic::{Generic, Pagination};
 use crate::models::refs::{HRef, QRef, RefEnum};
 
 pub fn refs_service(cfg: &mut ServiceConfig) {
-    cfg.service(scope("/refs").service(services![get_references, add_qref]));
+    cfg.service(scope("/refs").service(services![get_references, add_qref, get_qrefs]));
 }
 
 #[get("/{topic}")]
@@ -24,6 +24,22 @@ async fn add_qref(topic: Path<String>, qref: Json<QRef>, db: Data<Database>) -> 
     db.add_qref_to_topic(topic.as_str(), qref.0)
         .await
         .map(|_| Generic::new("Created Quran reference successfully".to_string()))
+        .map_err(Into::into)
+}
+
+#[get("/{topic}/qref")]
+async fn get_qrefs(
+    topic: Path<String>,
+    q: Query<Pagination>,
+    db: Data<Database>,
+) -> Result<Json<Vec<QRef>>> {
+    const DEF_PAGE: u32 = 1;
+    const DEF_SIZE: u32 = 50;
+    let page_num = q.page.unwrap_or(DEF_PAGE);
+    let size_num = q.size.unwrap_or(DEF_SIZE);
+    db.get_qrefs(&topic, page_num, size_num)
+        .await
+        .map(Json)
         .map_err(Into::into)
 }
 

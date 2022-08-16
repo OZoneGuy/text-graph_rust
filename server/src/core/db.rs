@@ -129,6 +129,24 @@ impl Database {
         Ok(q)
     }
 
+    pub async fn get_qrefs(&self, topic: &str, page: u32, size: u32) -> Result<Vec<QRef>> {
+        let skip = (page - 1) * size;
+        let r = Query::outbound(
+            1,
+            1,
+            RefEdge::COLLECTION_NAME,
+            &format!("{}/{}", Topic::COLLECTION_NAME, topic),
+        )
+        .limit(size, Some(skip))
+        .call(&self.db)
+        .await
+        .map_err(Error::default)?;
+        Ok(r.get_records::<QRef>()
+            .iter()
+            .map(|r| r.record.clone())
+            .collect())
+    }
+
     pub async fn add_session(&self, key: String, session: SessionRecord) -> Result<()> {
         DatabaseRecord::create_with_key(session, key, &self.db)
             .await

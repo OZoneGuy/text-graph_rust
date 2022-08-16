@@ -164,7 +164,44 @@ paths:
           $ref: '#/components/responses/Error'
 
   /refs/qref/{topic}:
+    get:
+      tags:
+        - ref
+      description: Get a list of Quranic references for a topic
+      operationId: get_qrefs
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            format: int64
+            nullable: true
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int64
+            nullable: true
+      responses:
+        '200':
+          description: 'The list of refs for the topic'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QRefParams'
+        '500':
+          $ref: '#/components/responses/Error'
+
     post:
+      tags:
+        - ref
       description: 'Add a new Quranic reference to the topic'
       operationId: add_qref
       parameters:
