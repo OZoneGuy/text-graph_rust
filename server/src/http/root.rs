@@ -50,6 +50,7 @@ mod test {
         web::Bytes,
         App,
     };
+    use serde_json::to_string;
 
     #[test]
     async fn test_root() {
@@ -61,18 +62,23 @@ mod test {
         assert_eq!(body, Bytes::from_static(b"Nothing to see here!"))
     }
 
-    // TODO: Update test to use new objects
-    // #[test]
-    // async fn test_health() {
-    //     let mut db = Database::default();
-    //     db.expect_health().returning(|| Ok(()));
-    //     let app = init_service(App::new().service(health).app_data(Data::new(db))).await;
-    //     let req = TestRequest::with_uri("/healthz").to_request();
-    //     let resp = app.call(req).await.unwrap();
-    //     assert_eq!(resp.status(), StatusCode::OK);
-    //     let body: Health = read_body_json(resp).await;
-    //     assert_eq!(body, Health::new("Everything is fine...".to_string()))
-    // }
+    #[test]
+    async fn test_health() {
+        let mut db = Database::default();
+        db.expect_health().returning(|| Ok(()));
+        let app = init_service(App::new().service(health).app_data(Data::new(db))).await;
+        let req = TestRequest::with_uri("/healthz").to_request();
+        let resp = app.call(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: Health = read_body_json(resp).await;
+        assert_eq!(
+            to_string(&body).unwrap(),
+            to_string(&Health::new(vec![HealthStatus::new(
+                "Database".to_string()
+            )]))
+            .unwrap()
+        )
+    }
 
     // #[test]
     // async fn test_unhealthy() {
