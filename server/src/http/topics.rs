@@ -18,19 +18,12 @@ pub fn topics_service(cfg: &mut ServiceConfig) {
 
 #[get("/")]
 async fn get_topics(db: Data<Database>, q: Query<Pagination>) -> Result<Json<Vec<String>>, Error> {
-    const DEF_PAGE: u32 = 1;
-    const DEF_SIZE: u32 = 50;
-    let page_num = q.page.unwrap_or(DEF_PAGE);
-    let size_num = q.size.unwrap_or(DEF_SIZE);
-    db.get_topics(page_num, size_num)
-        .await
-        .map(Json)
-        .map_err(|e| {
-            Error::new(
-                format!("Database error: {:?}", e),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-        })
+    db.get_topics(q.page, q.size).await.map(Json).map_err(|e| {
+        Error::new(
+            format!("Database error: {:?}", e),
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })
 }
 
 #[post("/")]

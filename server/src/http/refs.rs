@@ -33,11 +33,7 @@ async fn get_qrefs(
     q: Query<Pagination>,
     db: Data<Database>,
 ) -> Result<Json<Vec<QRef>>> {
-    const DEF_PAGE: u32 = 1;
-    const DEF_SIZE: u32 = 50;
-    let page_num = q.page.unwrap_or(DEF_PAGE);
-    let size_num = q.size.unwrap_or(DEF_SIZE);
-    db.get_qrefs(&topic, page_num, size_num)
+    db.get_qrefs(&topic, q.page, q.size)
         .await
         .map(Json)
         .map_err(Into::into)

@@ -35,8 +35,19 @@ pub struct Generic {
 
 #[derive(Deserialize)]
 pub struct Pagination {
-    pub page: Option<u32>,
-    pub size: Option<u32>,
+    #[serde(default = "Pagination::default_page")]
+    pub page: u32,
+    #[serde(default = "Pagination::default_size")]
+    pub size: u32,
+}
+
+impl Pagination {
+    fn default_page() -> u32 {
+        1
+    }
+    fn default_size() -> u32 {
+        50
+    }
 }
 
 impl Health {
