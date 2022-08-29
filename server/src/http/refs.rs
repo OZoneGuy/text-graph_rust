@@ -10,6 +10,19 @@ pub fn refs_service(cfg: &mut ServiceConfig) {
     cfg.service(scope("/refs").service(services![get_references, add_qref, get_qrefs]));
 }
 
+#[get("/qref")]
+async fn get_topics_for_qref(
+    qref: Json<QRef>,
+    q: Query<Pagination>,
+    db: Data<Database>,
+) -> Result<Json<Vec<String>>> {
+    db.get_ref()
+        .get_topics_from_qref(qref.0, q.page, q.size)
+        .await
+        .map_err(Into::into)
+        .map(Json)
+}
+
 #[get("/{topic}")]
 async fn get_references(topic: Path<String>, db: Data<Database>) -> Result<Json<Vec<RefEnum>>> {
     db.get_refs(&topic)

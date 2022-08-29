@@ -1,4 +1,4 @@
-use aragog::query::{Query, QueryResult};
+use aragog::query::{Comparison, Filter, Query, QueryResult};
 use aragog::transaction::Transaction;
 use aragog::{DatabaseConnection, DatabaseRecord, Record};
 
@@ -145,6 +145,60 @@ impl Database {
             .iter()
             .map(|r| r.record.clone())
             .collect())
+    }
+
+    /// Get the list of topics pointing at this verse.
+    /// Finds all the references containing this verse:
+    /// ```
+    ///  qref.chapter == result.chapter &&
+    ///     qref.init_verse >= result.init_verse
+    ///     qref.final_verse <= result.final_verse
+    /// ```
+    /// Then gets all the topic names that are pointing to these references.
+    ///
+    /// qref: The verse reference, can be multiple verses but must be contiguous.
+    /// page: the page to get.
+    /// size: The size of each page.
+    pub async fn get_topics_from_qref(
+        &self,
+        qref: QRef,
+        page: u32,
+        size: u32,
+    ) -> Result<Vec<String>> {
+        let skip = (page - 1) * size;
+        // Create query
+        let qrefs_query = QRef::query().filter(
+            Filter::new(Comparison::field("chapter").equals(qref.chapter))
+                .and(Comparison::field("init_verse").lesser_or_equal(qref.init_verse))
+                .and(Comparison::field("final_verse").greater_or_equal(qref.final_verse)),
+        );
+
+        let qrefs: Vec<Query> = QRef::get(&qrefs_query, &self.db)
+            .await
+            .map_err(Error::default)?
+            .0
+            .iter()
+            .map(|r| {
+                r.inbound_query(1, 1, RefEdge::COLLECTION_NAME)
+                    .limit(size, Some(skip))
+            })
+            .collect();
+        let mut topics: Vec<String> = vec![];
+
+        for ref_query in qrefs {
+            let newtopics: Vec<String> = ref_query
+                .call(&self.db)
+                .await
+                .map_err(Error::default)?
+                .0
+                .iter()
+                .map(|r: &DatabaseRecord<Topic>| r.record.name.clone())
+                .collect();
+            topics.extend(newtopics);
+        }
+        // remove duplicate topic names
+        topics.dedup();
+        Ok(topics)
     }
 
     pub async fn add_session(&self, key: String, session: SessionRecord) -> Result<()> {
