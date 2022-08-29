@@ -201,6 +201,53 @@ impl Database {
         Ok(topics)
     }
 
+    /// Get the list of topics pointing at this Hadith.
+    /// Then gets all the topic names that are pointing to these references.
+    ///
+    /// href: The Hadith reference.
+    /// page: the page to get.
+    /// size: The size of each page.
+    pub async fn get_topics_from_href(
+        &self,
+        href: HRef,
+        page: u32,
+        size: u32,
+    ) -> Result<Vec<String>> {
+        let skip = (page - 1) * size;
+
+        let hrefs_query = QRef::query().filter(
+            Filter::new(Comparison::field("collection").equals(href.collection))
+                .and(Comparison::field("number").equals(href.number)),
+        );
+
+        let hrefs: Vec<Query> = HRef::get(&hrefs_query, &self.db)
+            .await
+            .map_err(Error::default)?
+            .0
+            .iter()
+            .map(|r| {
+                r.inbound_query(1, 1, RefEdge::COLLECTION_NAME)
+                    .limit(size, Some(skip))
+            })
+            .collect();
+        let mut topics: Vec<String> = vec![];
+
+        for ref_query in hrefs {
+            let newtopics: Vec<String> = ref_query
+                .call(&self.db)
+                .await
+                .map_err(Error::default)?
+                .0
+                .iter()
+                .map(|r: &DatabaseRecord<Topic>| r.record.name.clone())
+                .collect();
+            topics.extend(newtopics);
+        }
+        // remove duplicate topic names
+        topics.dedup();
+        Ok(topics)
+    }
+
     pub async fn add_session(&self, key: String, session: SessionRecord) -> Result<()> {
         DatabaseRecord::create_with_key(session, key, &self.db)
             .await

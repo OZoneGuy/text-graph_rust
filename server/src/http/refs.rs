@@ -7,7 +7,13 @@ use crate::models::generic::{Generic, Pagination};
 use crate::models::refs::{HRef, QRef, RefEnum};
 
 pub fn refs_service(cfg: &mut ServiceConfig) {
-    cfg.service(scope("/refs").service(services![get_references, add_qref, get_qrefs]));
+    cfg.service(scope("/refs").service(services![
+        get_references,
+        add_qref,
+        get_qrefs,
+        get_topics_for_href,
+        get_topics_for_qref
+    ]));
 }
 
 #[get("/qref")]
@@ -18,6 +24,19 @@ async fn get_topics_for_qref(
 ) -> Result<Json<Vec<String>>> {
     db.get_ref()
         .get_topics_from_qref(qref.0, q.page, q.size)
+        .await
+        .map_err(Into::into)
+        .map(Json)
+}
+
+#[get("/href")]
+async fn get_topics_for_href(
+    href: Json<HRef>,
+    q: Query<Pagination>,
+    db: Data<Database>,
+) -> Result<Json<Vec<String>>> {
+    db.get_ref()
+        .get_topics_from_href(href.0, q.page, q.size)
         .await
         .map_err(Into::into)
         .map(Json)
